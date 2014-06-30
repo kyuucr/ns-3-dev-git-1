@@ -100,10 +100,8 @@ TcpHighSpeed::NewAck (const SequenceNumber32& seq)
     }
   else
     {
-      uint32_t coeffA = TableLookupA (m_cWnd.Get ());
-      double adder = static_cast<double> (coeffA * ((m_segmentSize * m_segmentSize) / m_cWnd.Get ()));
-      adder = std::max (1.0, adder);
-      m_cWnd += static_cast<uint32_t> (adder);
+      uint32_t coeffA = TableLookupA (m_cWnd.Get ()) * m_segmentSize;
+      m_cWnd += coeffA / m_cWnd.Get ();
       NS_LOG_INFO ("In CongAvoid, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
     }
 
@@ -744,37 +742,6 @@ TcpHighSpeed::DupAck (const TcpHeader& t, uint32_t count)
       uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, true);
       m_nextTxSequence += sz;                    // Advance next tx sequence
     }
-}
-
-/* Retransmit timeout */
-void
-TcpHighSpeed::Retransmit (void)
-{
-  NS_LOG_FUNCTION (this);
-  NS_LOG_LOGIC (this << " ReTxTimeout Expired at time " << Simulator::Now ().GetSeconds ());
-  m_inFastRec = false;
-
-  // If erroneous timeout in closed/timed-wait state, just return
-  if (m_state == CLOSED || m_state == TIME_WAIT)
-    {
-      return;
-    }
-  // If all data are received (non-closing socket and nothing to send), just return
-  if (m_state <= ESTABLISHED && m_txBuffer.HeadSequence () >= m_highTxMark)
-    {
-      return;
-    }
-
-  // According to RFC2581 sec.3.1, upon RTO, ssthresh is set to half of flight
-  // size and cwnd is set to 1*MSS, then the lost packet is retransmitted and
-  // TCP back to slow start
-  m_ssThresh = std::max (2 * m_segmentSize, BytesInFlight () / 2);
-  m_cWnd = m_segmentSize;
-  m_nextTxSequence = m_txBuffer.HeadSequence (); // Restart from highest Ack
-  NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
-               ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
-  m_rtt->IncreaseMultiplier ();             // Double the next RTO
-  DoRetransmit ();                          // Retransmit the packet
 }
 
 } // namespace ns3
