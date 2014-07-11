@@ -25,11 +25,6 @@
 #include "ns3/abort.h"
 #include "ns3/node.h"
 
-/*
-#define NS_LOG_APPEND_CONTEXT \
-  if (m_node) { std::clog << Simulator::Now ().GetSeconds () << " [node " << m_node->GetId () << "] "; }
-*/
-
 NS_LOG_COMPONENT_DEFINE ("TcpHighSpeed");
 
 namespace ns3 {
