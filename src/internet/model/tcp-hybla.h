@@ -35,18 +35,18 @@ public:
   TcpHybla ();
 
 protected:
-  virtual Ptr<TcpSocketBase> Fork (void);   // Call CopyObject<TcpNewReno> to clone me
+  virtual Ptr<TcpSocketBase> Fork (void);
   virtual void NewAck (SequenceNumber32 const& seq);
 
   virtual void InitializeCwnd (void);
   virtual void SetSSThresh (uint32_t threshold);
 
 protected:
-  double     m_rho;         /* Rho parameter  */
-  Time       m_minRtt;      /* Minimum smoothed round trip time value seen */
-  Time       m_rRtt;        /* Reference RTT */
+  double     m_rho;         //!< Rho parameter
+  Time       m_minRtt;      //!< Minimum smoothed round trip time value seen
+  Time       m_rRtt;        //!< Reference RTT
 
-  uint32_t   m_initSSTh;     /* Old S.S. Threshold */
+  uint32_t   m_initSSTh;     //!< Old S.S. Threshold
 
 private:
   /**
@@ -55,8 +55,6 @@ private:
   void Init (void);
 
   void RecalcParam (void);
-
-  void congAvoid (const SequenceNumber32& seq);
 };
 
 } // namespace ns3

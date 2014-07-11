@@ -17,11 +17,6 @@
  *
  */
 
-#define NS_LOG_APPEND_CONTEXT \
-  if (m_node) \
-    { std::clog << Simulator::Now ().GetSeconds () << \
-        " [node " << m_node->GetId () << "] "; }
-
 #include "tcp-hybla.h"
 #include "ns3/log.h"
 #include "ns3/node.h"
@@ -92,21 +87,6 @@ TcpHybla::RecalcParam ()
     }
 
   m_rho = std::max ((double)rtt.GetMilliSeconds () / m_rRtt.GetMilliSeconds (), 1.0);
-
-  /*
-  if (m_ssThresh == m_initSSTh)
-    {
-       m_ssThresh *= m_rho;
-    }
-
-  if (m_cWnd == m_initialCWnd * m_segmentSize)
-    {
-      m_cWnd *= m_rho;
-    }
-*/
-
-  NS_LOG_DEBUG ("RHO: " << m_rho << " rtt= " << rtt.GetMilliSeconds ());
-  NS_LOG_DEBUG ("cWnd: " << m_cWnd << " ssThresh: " << m_ssThresh);
 }
 
 void
@@ -139,7 +119,6 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
       is_slowstart = true;
       NS_ASSERT (m_rho > 0.0);
       increment = std::pow (2, m_rho) - 1;
-      NS_LOG_DEBUG ("SS");
     }
   else
     {
@@ -147,15 +126,12 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
        * congestion avoidance
        * INC = RHO^2 / W
        */
-      NS_LOG_DEBUG ("CA");
       NS_ASSERT (m_cWnd.Get () != 0);
       increment = std::pow (m_rho, 2) / ((double) m_cWnd.Get () / m_segmentSize);
     }
 
   NS_ASSERT (increment >= 0.0);
-  NS_LOG_DEBUG ("incr=" << increment);
 
-  NS_LOG_DEBUG ("Old cWnd: " << m_cWnd);
   m_cWnd += m_segmentSize * increment;
 
   /* clamp down slowstart cwnd to ssthresh value. */
@@ -163,8 +139,6 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
     {
       m_cWnd = std::min (m_cWnd.Get (), m_ssThresh);
     }
-
-  NS_LOG_DEBUG ("New=" << m_cWnd);
 
   TcpSocketBase::NewAck (seq);
 }
