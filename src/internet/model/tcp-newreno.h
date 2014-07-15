@@ -71,7 +71,6 @@ protected:
   virtual uint32_t GetInitialCwnd (void) const;
   virtual void ScaleSsThresh (uint8_t scaleFactor);
 
-private:
   /**
    * \brief Set the congestion window when connection starts
    */
