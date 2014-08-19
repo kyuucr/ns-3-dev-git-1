@@ -181,14 +181,14 @@ TcpCubic::Connect (const Address & address)
 
 
 void
-TcpCubic::SetSSThresh (uint32_t threshold)
+TcpCubic::SetInitialSSThresh (uint32_t threshold)
 {
   NS_LOG_FUNCTION (this);
   m_ssThresh = threshold;
 }
 
 uint32_t
-TcpCubic::GetSSThresh (void) const
+TcpCubic::GetInitialSSThresh (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_ssThresh;

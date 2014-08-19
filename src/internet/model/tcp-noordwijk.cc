@@ -76,14 +76,14 @@ TcpNoordwijk::TcpNoordwijk () : TcpSocketBase (),
 }
 
 void
-TcpNoordwijk::SetSSThresh (uint32_t threshold)
+TcpNoordwijk::SetInitialSSThresh (uint32_t threshold)
 {
   (void) threshold;
   NS_LOG_WARN ("TcpNoordwijk does not perform slow start");
 }
 
 uint32_t
-TcpNoordwijk::GetSSThresh (void) const
+TcpNoordwijk::GetInitialSSThresh (void) const
 {
   NS_LOG_WARN ("TcpNoordwijk does not perform slow start");
   return 0;

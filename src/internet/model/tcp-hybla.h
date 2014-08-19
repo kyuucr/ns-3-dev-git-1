@@ -39,14 +39,11 @@ protected:
   virtual void NewAck (SequenceNumber32 const& seq);
 
   virtual void InitializeCwnd (void);
-  virtual void SetSSThresh (uint32_t threshold);
 
 protected:
   double     m_rho;         //!< Rho parameter
   Time       m_minRtt;      //!< Minimum smoothed round trip time value seen
   Time       m_rRtt;        //!< Reference RTT
-
-  uint32_t   m_initSSTh;     //!< Old S.S. Threshold
 
 private:
   /**

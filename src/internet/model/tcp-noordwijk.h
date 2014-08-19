@@ -67,8 +67,8 @@ protected:
   virtual uint32_t AvailableWindow (void);
 
   // Implementing ns3::TcpSocket -- Attribute get/set
-  virtual void     SetSSThresh (uint32_t threshold);
-  virtual uint32_t GetSSThresh (void) const;
+  virtual void     SetInitialSSThresh (uint32_t threshold);
+  virtual uint32_t GetInitialSSThresh (void) const;
   virtual void     SetInitialCwnd (uint32_t cwnd);
   virtual uint32_t GetInitialCwnd (void) const;
 

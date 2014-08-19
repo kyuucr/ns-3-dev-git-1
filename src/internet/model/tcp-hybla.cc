@@ -69,14 +69,6 @@ TcpHybla::InitializeCwnd ()
 }
 
 void
-TcpHybla::SetSSThresh (uint32_t threshold)
-{
-  TcpNewReno::SetSSThresh (threshold);
-
-  m_initSSTh = m_ssThresh;
-}
-
-void
 TcpHybla::RecalcParam ()
 {
   Time rtt = m_lastRtt.Get ();
@@ -95,7 +87,7 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
   NS_LOG_FUNCTION (this);
 
   double increment;
-  bool is_slowstart = false;
+  bool isSlowstart = false;
 
   Time rtt = m_lastRtt.Get ();
   if (rtt.IsZero ())
@@ -110,13 +102,13 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
       m_minRtt = rtt;
     }
 
-  if (m_cWnd.Get () < m_ssThresh)
+  if (m_cWnd.Get () < m_ssThresh.Get ())
     {
       /*
        * slow start
        *      INC = 2^RHO - 1
        */
-      is_slowstart = true;
+      isSlowstart = true;
       NS_ASSERT (m_rho > 0.0);
       increment = std::pow (2, m_rho) - 1;
     }
@@ -135,9 +127,9 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
   m_cWnd += m_segmentSize * increment;
 
   /* clamp down slowstart cwnd to ssthresh value. */
-  if (is_slowstart)
+  if (isSlowstart)
     {
-      m_cWnd = std::min (m_cWnd.Get (), m_ssThresh);
+      m_cWnd = std::min (m_cWnd.Get (), m_ssThresh.Get ());
     }
 
   TcpSocketBase::NewAck (seq);
