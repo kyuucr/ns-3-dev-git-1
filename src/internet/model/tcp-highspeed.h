@@ -30,6 +30,19 @@ namespace ns3 {
  * \brief An implementation of Tcp HighSpeed
  *
  * This class contains the HighSpeed TCP implementation, as of \RFC{3649}.
+ * When an ACK is received (in congestion avoidance), the window is increased
+ * by a(w)/w and when a loss is detected through triple duplicate
+ * acknowledgments, the window is decreased by (1-b(w))w, where w is the current
+ * window size. When the congestion window is small, HSTCP behaves exactly
+ * like standard TCP so a(w) is 1 and b(w) is 0.5. When TCP's congestion window
+ * is beyond a certain threshold, a(w) and b(w) become functions of the
+ * current window size. In this region, as the congestion window increases,
+ * the value of a(w) increases and the value of b(w) decreases.
+ * This means that HSTCP's window will grow faster than standard TCP
+ * and also recover from losses more quickly. This behavior allows
+ * HSTCP to be friendly to standard TCP flows in normal networks and
+ * also to quickly utilize available bandwidth in networks with large
+ * bandwidth delay products.
  */
 class TcpHighSpeed : public TcpNewReno
 {
