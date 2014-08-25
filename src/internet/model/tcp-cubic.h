@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2013 Natale Patriciello <natale.patriciello@gmail.com>
+ * Copyright (c) 2014 Natale Patriciello <natale.patriciello@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -83,7 +83,6 @@ public:
 
   TcpCubic ();
 
-
   // From TcpSocketBase
   virtual int Connect (const Address &address);
   virtual int Listen (void);
@@ -97,15 +96,15 @@ protected:
   virtual void Retransmit (void);
 
   // Implementing ns3::TcpSocket -- Attribute get/set
-  virtual void     SetInitialSSThresh (uint32_t threshold);
-  virtual uint32_t GetInitialSSThresh (void) const;
+  virtual void     SetSSThresh (uint32_t threshold);
+  virtual uint32_t GetSSThresh (void) const;
   virtual void     SetInitialCwnd (uint32_t cwnd);
   virtual uint32_t GetInitialCwnd (void) const;
 
 
 protected:
   /* \brief Values to detect the Slow Start mode of HyStart
-  */
+   */
   enum HybridSSDetectionMode
   {
     PACKET_TRAIN = 0x1,
@@ -122,28 +121,34 @@ protected:
   };
 
   bool m_fastConvergence;
-  int m_beta;
-  int m_bicScale;
+  double m_beta;
 
   bool m_hystart;
   int m_hystartDetect;
-  int m_hystartLowWindow;
+  uint32_t m_hystartLowWindow;
   Time m_hystartAckDelta;
+  Time m_hystartDelayMin;
+  Time m_hystartDelayMax;
+  uint8_t m_hystartMinSamples;
 
   uint32_t m_ssThresh;
   uint32_t m_initialCwnd;
+  uint32_t m_cWndAfterLoss;
+  uint8_t m_cntClamp;
+
+  double m_c;
 
   // Cubic parameters
   CubicState   m_cubicState;
-  uint32_t     m_cnt;              /* increase cwnd by 1 after ACKs */
+  uint32_t     m_cnt;             /* increase cwnd by 1 after ACKs */
   uint32_t     m_cWndCnt;
-  uint32_t     m_lastMaxCwnd;    /* last maximum snd_cwnd */
+  uint32_t     m_lastMaxCwnd;     /* last maximum snd_cwnd */
   uint32_t     m_lossCwnd;        /* congestion window at last loss */
   uint32_t     m_bicOriginPoint;  /* origin point of bic function */
   uint32_t     m_bicK;            /* time to origin point from the beginning of the current epoch */
   Time         m_delayMin;        /* min delay */
   Time         m_epochStart;      /* beginning of an epoch */
-  uint8_t      m_found;            /* the exit point is found? */
+  uint8_t      m_found;           /* the exit point is found? */
   Time         m_roundStart;      /* beginning of each round */
   SequenceNumber32   m_endSeq;    /* end_seq of the round */
   Time         m_lastAck;         /* last time when the ACK spacing is close */
@@ -175,24 +180,38 @@ private:
   void HystartUpdate (const Time& delay);
 
   /**
+   * \brief Clamp time value in a range
+   *
+   * The returned value is t, clamped in a range specified
+   * by attributes (HystartDelayMin < t < HystartDelayMax)
+   *
+   * \param t Time value to clamp
+   * \return t itself if it is in range, otherwise the min or max
+   * value
+   */
+  Time HystartDelayThresh(Time t) const;
+
+  /**
    * \brief Timing calculation about acks
    */
-  void pktsAcked (void);
+  void PktsAcked (void);
 
   /**
    * \brief The congestion avoidance phase of Cubic
+   *
+   * \param seq The sequence number acked
    */
-  void congAvoid (const SequenceNumber32 &seq);
+  void CongAvoid (const SequenceNumber32 &seq);
 
   /**
    * \brief Cubic window update after a new ack received
    */
-  void bictcpUpdate (void);
+  void WindowUpdate (void);
 
   /**
    * \brief Cubic window update after a loss
    */
-  void bictcpRecalcSsthresh (void);
+  void RecalcSsthresh (void);
 };
 
 }

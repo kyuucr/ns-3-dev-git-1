@@ -29,34 +29,6 @@ namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED (TcpCubic);
 
-/**
-* clamp - return a value clamped to a given range with strict typechecking
-* @val: current value
-* @min: minimum allowable value
-* @max: maximum allowable value
-*
-* This macro does strict typechecking of min/max to make sure they are of the
-* same type as val.  See the unnecessary pointer comparisons.
-*/
-#define clamp(val, min, max) ({                 \
-                                typeof(val)__val = (val);              \
-                                typeof(min)__min = (min);              \
-                                typeof(max)__max = (max);              \
-                                (void) (&__val == &__min);              \
-                                (void) (&__val == &__max);              \
-                                __val = __val < __min ? __min : __val;   \
-                                __val > __max ? __max : __val; })
-
-#define BICTCP_BETA_SCALE       1024       /* Scale factor beta calculation
-                                            * max_cwnd = snd_cwnd * beta
-                                            */
-
-/* Number of delay samples for detecting the increase of delay */
-#define HYSTART_MIN_SAMPLES     8
-#define HYSTART_DELAY_MIN       MilliSeconds (4)
-#define HYSTART_DELAY_MAX       MilliSeconds (1000)
-#define HYSTART_DELAY_THRESH(x) clamp (x, HYSTART_DELAY_MIN, HYSTART_DELAY_MAX)
-
 TypeId
 TcpCubic::GetTypeId (void)
 {
@@ -68,34 +40,57 @@ TcpCubic::GetTypeId (void)
                    MakeBooleanAccessor (&TcpCubic::m_fastConvergence),
                    MakeBooleanChecker ())
     .AddAttribute ("Beta", "Beta for multiplicative increase",
-                   IntegerValue (717), /* = 717/1024 (BICTCP_BETA_SCALE) */
-                   MakeIntegerAccessor (&TcpCubic::m_beta),
-                   MakeIntegerChecker <int> ())
-    .AddAttribute ("BicScale", "Scale (scaled by 1024) value for bic function (bic_scale/1024)",
-                   IntegerValue (41),
-                   MakeIntegerAccessor (&TcpCubic::m_bicScale),
-                   MakeIntegerChecker <int> ())
+                   DoubleValue (0.8),
+                   MakeDoubleAccessor (&TcpCubic::m_beta),
+                   MakeDoubleChecker <double> (0.0))
     .AddAttribute ("HyStart", "Turn on/off hybrid slow start algorithm",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpCubic::m_hystart),
                    MakeBooleanChecker ())
-    .AddAttribute ("HystartLowWindow", "Lower bound cWnd for hybrid slow start",
-                   IntegerValue (16),
-                   MakeIntegerAccessor (&TcpCubic::m_hystartLowWindow),
-                   MakeIntegerChecker <int> ())
+    .AddAttribute ("HystartLowWindow", "Lower bound cWnd for hybrid slow start (segments)",
+                   UintegerValue (16),
+                   MakeUintegerAccessor (&TcpCubic::m_hystartLowWindow),
+                   MakeUintegerChecker <uint32_t> ())
     .AddAttribute ("HystartDetect", "Hybrid Slow Start detection mechanisms:" \
                    "1: packet train, 2: delay, 3: both",
                    IntegerValue (3),
                    MakeIntegerAccessor (&TcpCubic::m_hystartDetect),
                    MakeIntegerChecker <int> ())
+    .AddAttribute ("HystartMinSamples", "Number of delay samples for detecting the increase of delay",
+                   UintegerValue (8),
+                   MakeUintegerAccessor (&TcpCubic::m_hystartMinSamples),
+                   MakeUintegerChecker <uint8_t> ())
     .AddAttribute ("HystartAckDelta", "Spacing between ack's indicating train (msecs)",
                    TimeValue (MilliSeconds (2)),
                    MakeTimeAccessor (&TcpCubic::m_hystartAckDelta),
+                   MakeTimeChecker ())
+    .AddAttribute ("HystartDelayMin", "Minimum time for hystart algorithm",
+                   TimeValue (MilliSeconds (4)),
+                   MakeTimeAccessor (&TcpCubic::m_hystartDelayMin),
+                   MakeTimeChecker ())
+    .AddAttribute ("HystartDelayMax", "Maximun time for hystart algorithm",
+                   TimeValue (MilliSeconds (1000)),
+                   MakeTimeAccessor (&TcpCubic::m_hystartDelayMax),
                    MakeTimeChecker ())
     .AddAttribute ("CubicDelta", "Delta Time to wait after fast recovery before adjusting param",
                    TimeValue (MilliSeconds (10)),
                    MakeTimeAccessor (&TcpCubic::m_cubicDelta),
                    MakeTimeChecker ())
+    .AddAttribute ("CwndAfterLoss", "Congestion window size after a loss (segments)",
+                   UintegerValue (1),
+                   MakeUintegerAccessor (&TcpCubic::m_cWndAfterLoss),
+                   MakeUintegerChecker <uint32_t> ())
+    .AddAttribute ("CntClamp", "Counter value when no losses are detected (counter is used"\
+                               " when incrementing cWnd in congestion avoidance, to avoid"\
+                               " floating point arithmetic. It is the modulo of the (avoided)"\
+                               " division",
+                   UintegerValue (20),
+                   MakeUintegerAccessor (&TcpCubic::m_cntClamp),
+                   MakeUintegerChecker <uint8_t> ())
+    .AddAttribute ("C", "Cubic Scaling factor",
+                   DoubleValue (0.4),
+                   MakeDoubleAccessor (&TcpCubic::m_c),
+                   MakeDoubleChecker <double> (0.0))
     .AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpCubic::m_cWnd))
@@ -181,14 +176,14 @@ TcpCubic::Connect (const Address & address)
 
 
 void
-TcpCubic::SetInitialSSThresh (uint32_t threshold)
+TcpCubic::SetSSThresh (uint32_t threshold)
 {
   NS_LOG_FUNCTION (this);
   m_ssThresh = threshold;
 }
 
 uint32_t
-TcpCubic::GetInitialSSThresh (void) const
+TcpCubic::GetSSThresh (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_ssThresh;
@@ -216,18 +211,18 @@ TcpCubic::NewAck (SequenceNumber32 const& seq)
   TcpSocketBase::NewAck (seq);
 
   m_cubicState = OPEN;
-  pktsAcked ();
-  congAvoid (seq);
+  PktsAcked ();
+  CongAvoid (seq);
 
   m_lossCwnd = 0;
 }
 
 void
-TcpCubic::bictcpUpdate ()
+TcpCubic::WindowUpdate ()
 {
   NS_LOG_FUNCTION (this);
   Time t;
-  uint32_t delta, bic_target;
+  uint32_t delta, bicTarget;
   uint64_t offs;
 
   if (m_epochStart == Time::Min ())
@@ -261,22 +256,22 @@ TcpCubic::bictcpUpdate ()
 
   /* Constant value taken from Experimental Evaluation of Cubic Tcp, available at
    * eprints.nuim.ie/1716/1/Hamiltonpfldnet2007_cubic_final.pdf */
-  delta = 0.4 * std::pow (offs, 3);
+  delta = m_c * std::pow (offs, 3);
 
   if (t.GetMilliSeconds () < m_bicK)                /* below origin*/
     {
-      bic_target = m_bicOriginPoint - delta;
+      bicTarget = m_bicOriginPoint - delta;
     }
   else                                              /* above origin*/
     {
-      bic_target = m_bicOriginPoint + delta;
+      bicTarget = m_bicOriginPoint + delta;
     }
 
-  //bic_target = std::min (bic_target, m_rWnd.Get ());
+  //bicTarget = std::min (bicTarget, m_rWnd.Get ());
 
-  if (bic_target > m_cWnd.Get ())
+  if (bicTarget > m_cWnd.Get ())
     {
-      m_cnt = m_cWnd.Get () / (bic_target - m_cWnd.Get ());
+      m_cnt = m_cWnd.Get () / (bicTarget - m_cWnd.Get ());
     }
   else
     {
@@ -288,9 +283,9 @@ TcpCubic::bictcpUpdate ()
       m_cnt = std::max (m_cnt, (uint32_t) (8 * m_cWnd.Get () / (m_delayMin.GetMilliSeconds () * 20)));
     }
 
-  if (m_lossCwnd == 0 && m_cnt > 20)
+  if (m_lossCwnd == 0 && m_cnt > m_cntClamp)
     {
-      m_cnt = 20; /* When no losses are detected, grow up fast */
+      m_cnt = m_cntClamp; /* When no losses are detected, grow up fast */
     }
 
   if (m_cnt == 0)
@@ -300,7 +295,7 @@ TcpCubic::bictcpUpdate ()
 }
 
 void
-TcpCubic::congAvoid (const SequenceNumber32& seq)
+TcpCubic::CongAvoid (const SequenceNumber32& seq)
 {
   NS_LOG_FUNCTION (this);
   if (m_cWnd.Get () <= m_ssThresh)
@@ -314,7 +309,7 @@ TcpCubic::congAvoid (const SequenceNumber32& seq)
     }
   else
     {
-      bictcpUpdate ();
+      WindowUpdate ();
 
       /* Manage the increment in a proper way, avoiding floating point arithmetic */
       if (m_cWndCnt > m_cnt)
@@ -330,7 +325,7 @@ TcpCubic::congAvoid (const SequenceNumber32& seq)
 }
 
 void
-TcpCubic::pktsAcked ()
+TcpCubic::PktsAcked ()
 {
   NS_LOG_FUNCTION (this);
 
@@ -355,7 +350,9 @@ TcpCubic::pktsAcked ()
     }
 
   /* hystart triggers when cwnd is larger than some threshold */
-  if (m_hystart && m_cWnd.Get () <= m_ssThresh && m_cWnd.Get () >= (uint32_t) m_hystartLowWindow)
+  if (m_hystart                   &&
+      m_cWnd.Get () <= m_ssThresh &&
+      m_cWnd.Get () >= m_hystartLowWindow * m_segmentSize)
     {
       HystartUpdate (delay);
     }
@@ -382,7 +379,7 @@ TcpCubic::HystartUpdate (const Time& delay)
         }
 
       /* obtain the minimum delay of more than sampling packets */
-      if (m_sampleCnt < HYSTART_MIN_SAMPLES)
+      if (m_sampleCnt < m_hystartMinSamples)
         {
           if (m_currRtt == Time::Min () || m_currRtt > delay)
             {
@@ -394,7 +391,7 @@ TcpCubic::HystartUpdate (const Time& delay)
       else
         {
           if (m_currRtt > m_delayMin +
-              HYSTART_DELAY_THRESH (m_delayMin))
+              HystartDelayThresh (m_delayMin))
             {
               m_found |= DELAY;
             }
@@ -411,8 +408,23 @@ TcpCubic::HystartUpdate (const Time& delay)
     }
 }
 
+Time TcpCubic::HystartDelayThresh(Time t) const
+{
+  Time ret = t;
+  if (t > m_hystartDelayMax)
+    {
+      ret = m_hystartDelayMax;
+    }
+  else if (t < m_hystartDelayMin)
+    {
+      ret = m_hystartDelayMin;
+    }
+
+  return ret;
+}
+
 void
-TcpCubic::bictcpRecalcSsthresh ()
+TcpCubic::RecalcSsthresh ()
 {
   NS_LOG_FUNCTION (this);
 
@@ -439,14 +451,16 @@ TcpCubic::bictcpRecalcSsthresh ()
   m_lossCwnd = m_cWnd.Get ();
 
   /* Formula taken from the Linux kernel */
-  m_ssThresh = std::max ((m_cWnd.Get () * m_beta) / BICTCP_BETA_SCALE, 2U * m_segmentSize);
+  m_ssThresh = std::max (static_cast<uint32_t> (m_cWnd.Get () * m_beta),
+                         2U * m_segmentSize);
 
   /* Constant value taken from Experimental Evaluation of Cubic Tcp, available at
    * eprints.nuim.ie/1716/1/Hamiltonpfldnet2007_cubic_final.pdf */
   //m_cWnd = 0.8 * m_cWnd.Get ();
 
-  // This is what happen in the Linux kernel after ssthres is called
-  m_cWnd = 1U * m_segmentSize;
+  // If m_cWndAfterLoss is 1, this is what happen in the Linux kernel
+  // after ssthres is called
+  m_cWnd = m_cWndAfterLoss * m_segmentSize;
 }
 
 void
@@ -456,12 +470,12 @@ TcpCubic::DupAck (const TcpHeader& t, uint32_t count)
   (void) t;
 
   /* Keep the timing information */
-  pktsAcked ();
+  PktsAcked ();
 
   /* After 3 DUPAcks, there is a Loss. */
   if (count == 3)
     {
-      bictcpRecalcSsthresh ();
+      RecalcSsthresh ();
       m_cubicState = LOSS;
       DoRetransmit ();
     }
@@ -478,7 +492,7 @@ TcpCubic::Retransmit (void)
 {
   NS_LOG_FUNCTION (this);
 
-  bictcpRecalcSsthresh ();
+  RecalcSsthresh ();
 
   m_cubicState = LOSS;
 
