@@ -103,12 +103,13 @@ protected:
 
 
 protected:
-  /* \brief Values to detect the Slow Start mode of HyStart
+  /**
+   * \brief Values to detect the Slow Start mode of HyStart
    */
   enum HybridSSDetectionMode
   {
-    PACKET_TRAIN = 0x1,
-    DELAY        = 0x2
+    PACKET_TRAIN = 0x1, //!< Detection by trains of packet
+    DELAY        = 0x2  //!< Detection by delay value
   };
 
   /**
@@ -116,47 +117,47 @@ protected:
    */
   enum CubicState
   {
-    OPEN     = 0x1,
-    LOSS     = 0x2,
+    OPEN     = 0x1, //!< Open state
+    LOSS     = 0x2, //!< Loss state
   };
 
-  bool m_fastConvergence;
-  double m_beta;
+  bool     m_fastConvergence;  //!< Enable or disable fast convergence algorithm
+  double   m_beta;             //!< Beta for cubic multiplicative increase
 
-  bool m_hystart;
-  int m_hystartDetect;
-  uint32_t m_hystartLowWindow;
-  Time m_hystartAckDelta;
-  Time m_hystartDelayMin;
-  Time m_hystartDelayMax;
-  uint8_t m_hystartMinSamples;
+  bool     m_hystart;          //!< Enable or disable HyStart algorithm
+  int      m_hystartDetect;    //!< Detect way for HyStart algorithm \see HybridSSDetectionMode
+  uint32_t m_hystartLowWindow; //!< Lower bound cWnd for hybrid slow start (segments)
+  Time     m_hystartAckDelta;  //!< Spacing between ack's indicating train
+  Time     m_hystartDelayMin;  //!< Minimum time for hystart algorithm
+  Time     m_hystartDelayMax;  //!< Maximum time for hystart algorithm
+  uint8_t  m_hystartMinSamples;//!< Number of delay samples for detecting the increase of delay
 
-  uint32_t m_ssThresh;
-  uint32_t m_initialCwnd;
-  uint32_t m_cWndAfterLoss;
-  uint8_t m_cntClamp;
+  uint32_t m_ssThresh;         //!< Slow start threshold
+  uint32_t m_initialCwnd;      //!< Initial cWnd
+  uint32_t m_cWndAfterLoss;    //!< cWnd after detecting a loss
+  uint8_t  m_cntClamp;         //!< Modulo of the (avoided) float division for cWnd
 
-  double m_c;
+  double   m_c;                //!< Cubic Scaling factor
 
   // Cubic parameters
-  CubicState   m_cubicState;
-  uint32_t     m_cnt;             /* increase cwnd by 1 after ACKs */
-  uint32_t     m_cWndCnt;
-  uint32_t     m_lastMaxCwnd;     /* last maximum snd_cwnd */
-  uint32_t     m_lossCwnd;        /* congestion window at last loss */
-  uint32_t     m_bicOriginPoint;  /* origin point of bic function */
-  uint32_t     m_bicK;            /* time to origin point from the beginning of the current epoch */
-  Time         m_delayMin;        /* min delay */
-  Time         m_epochStart;      /* beginning of an epoch */
-  uint8_t      m_found;           /* the exit point is found? */
-  Time         m_roundStart;      /* beginning of each round */
-  SequenceNumber32   m_endSeq;    /* end_seq of the round */
-  Time         m_lastAck;         /* last time when the ACK spacing is close */
-  Time         m_cubicDelta;       /* Time to wait after recovery before update */
-  Time         m_currRtt;
+  CubicState   m_cubicState;      //!<  Cubic state \see CubicState
+  uint32_t     m_cnt;             //!<  Increase cwnd by 1 after ACKs
+  uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
+  uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
+  uint32_t     m_lossCwnd;        //!<  Congestion window at last loss
+  uint32_t     m_bicOriginPoint;  //!<  Origin point of bic function
+  uint32_t     m_bicK;            //!<  Time to origin point from the beginning of the current epoch
+  Time         m_delayMin;        //!<  Min delay
+  Time         m_epochStart;      //!<  Beginning of an epoch
+  uint8_t      m_found;           //!<  The exit point is found?
+  Time         m_roundStart;      //!<  Beginning of each round
+  SequenceNumber32   m_endSeq;    //!<  End sequence of the round
+  Time         m_lastAck;         //!<  Last time when the ACK spacing is close
+  Time         m_cubicDelta;      //!<  Time to wait after recovery before update
+  Time         m_currRtt;         //!<  Current Rtt
   uint32_t     m_sampleCnt;
 
-  TracedValue<uint32_t>     m_cWnd;
+  TracedValue<uint32_t>     m_cWnd; //!< Congestion window
 
 private:
   /**
@@ -176,6 +177,8 @@ private:
 
   /**
    * \brief Update HyStart parameters
+   *
+   * \param delay Delay for HyStart algorithm
    */
   void HystartUpdate (const Time& delay);
 
@@ -189,7 +192,7 @@ private:
    * \return t itself if it is in range, otherwise the min or max
    * value
    */
-  Time HystartDelayThresh(Time t) const;
+  Time HystartDelayThresh (Time t) const;
 
   /**
    * \brief Timing calculation about acks

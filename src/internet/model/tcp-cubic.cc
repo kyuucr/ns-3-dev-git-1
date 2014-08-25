@@ -35,7 +35,7 @@ TcpCubic::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::TcpCubic")
     .SetParent<TcpSocketBase> ()
     .AddConstructor<TcpCubic> ()
-    .AddAttribute ("FastConvergence", "Turn on/off fast convergence",
+    .AddAttribute ("FastConvergence", "Enable (true) or disable (false) fast convergence",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpCubic::m_fastConvergence),
                    MakeBooleanChecker ())
@@ -43,32 +43,32 @@ TcpCubic::GetTypeId (void)
                    DoubleValue (0.8),
                    MakeDoubleAccessor (&TcpCubic::m_beta),
                    MakeDoubleChecker <double> (0.0))
-    .AddAttribute ("HyStart", "Turn on/off hybrid slow start algorithm",
+    .AddAttribute ("HyStart", "Enable (true) or disable (false) hybrid slow start algorithm",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpCubic::m_hystart),
                    MakeBooleanChecker ())
-    .AddAttribute ("HystartLowWindow", "Lower bound cWnd for hybrid slow start (segments)",
+    .AddAttribute ("HyStartLowWindow", "Lower bound cWnd for hybrid slow start (segments)",
                    UintegerValue (16),
                    MakeUintegerAccessor (&TcpCubic::m_hystartLowWindow),
                    MakeUintegerChecker <uint32_t> ())
-    .AddAttribute ("HystartDetect", "Hybrid Slow Start detection mechanisms:" \
+    .AddAttribute ("HyStartDetect", "Hybrid Slow Start detection mechanisms:" \
                    "1: packet train, 2: delay, 3: both",
                    IntegerValue (3),
                    MakeIntegerAccessor (&TcpCubic::m_hystartDetect),
                    MakeIntegerChecker <int> ())
-    .AddAttribute ("HystartMinSamples", "Number of delay samples for detecting the increase of delay",
+    .AddAttribute ("HyStartMinSamples", "Number of delay samples for detecting the increase of delay",
                    UintegerValue (8),
                    MakeUintegerAccessor (&TcpCubic::m_hystartMinSamples),
                    MakeUintegerChecker <uint8_t> ())
-    .AddAttribute ("HystartAckDelta", "Spacing between ack's indicating train (msecs)",
+    .AddAttribute ("HyStartAckDelta", "Spacing between ack's indicating train",
                    TimeValue (MilliSeconds (2)),
                    MakeTimeAccessor (&TcpCubic::m_hystartAckDelta),
                    MakeTimeChecker ())
-    .AddAttribute ("HystartDelayMin", "Minimum time for hystart algorithm",
+    .AddAttribute ("HyStartDelayMin", "Minimum time for hystart algorithm",
                    TimeValue (MilliSeconds (4)),
                    MakeTimeAccessor (&TcpCubic::m_hystartDelayMin),
                    MakeTimeChecker ())
-    .AddAttribute ("HystartDelayMax", "Maximun time for hystart algorithm",
+    .AddAttribute ("HyStartDelayMax", "Maximum time for hystart algorithm",
                    TimeValue (MilliSeconds (1000)),
                    MakeTimeAccessor (&TcpCubic::m_hystartDelayMax),
                    MakeTimeChecker ())
@@ -80,10 +80,10 @@ TcpCubic::GetTypeId (void)
                    UintegerValue (1),
                    MakeUintegerAccessor (&TcpCubic::m_cWndAfterLoss),
                    MakeUintegerChecker <uint32_t> ())
-    .AddAttribute ("CntClamp", "Counter value when no losses are detected (counter is used"\
-                               " when incrementing cWnd in congestion avoidance, to avoid"\
-                               " floating point arithmetic. It is the modulo of the (avoided)"\
-                               " division",
+    .AddAttribute ("CntClamp", "Counter value when no losses are detected (counter is used" \
+                   " when incrementing cWnd in congestion avoidance, to avoid" \
+                   " floating point arithmetic). It is the modulo of the (avoided)" \
+                   " division",
                    UintegerValue (20),
                    MakeUintegerAccessor (&TcpCubic::m_cntClamp),
                    MakeUintegerChecker <uint8_t> ())
@@ -408,7 +408,8 @@ TcpCubic::HystartUpdate (const Time& delay)
     }
 }
 
-Time TcpCubic::HystartDelayThresh(Time t) const
+Time
+TcpCubic::HystartDelayThresh (Time t) const
 {
   Time ret = t;
   if (t > m_hystartDelayMax)
