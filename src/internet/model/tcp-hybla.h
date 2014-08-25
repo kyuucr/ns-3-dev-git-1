@@ -23,6 +23,15 @@
 
 namespace ns3 {
 
+/**
+ * \brief Implementation of the Tcp Hybla algorithm
+ *
+ * TCP Hybla aims to eliminate penalization of TCP connections that
+ * incorporate a high-latency terrestrial or satellite radio link, due
+ * to their longer round trip times. It stems from an analytical evaluation
+ * of the congestion window dynamics, which suggests the necessary
+ * modifications to remove the performance dependence on RTT.
+ */
 class TcpHybla : public TcpNewReno
 {
 public:
@@ -51,6 +60,9 @@ private:
    */
   void Init (void);
 
+  /**
+   * \brief Recalculate algorithm paramenters
+   */
   void RecalcParam (void);
 };
 

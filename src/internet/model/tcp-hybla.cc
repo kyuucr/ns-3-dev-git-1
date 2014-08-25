@@ -38,10 +38,6 @@ TcpHybla::GetTypeId (void)
                    TimeValue (MilliSeconds (50)),
                    MakeTimeAccessor (&TcpHybla::m_rRtt),
                    MakeTimeChecker ())
-    //.AddAttribute ("LimitedTransmit", "Enable limited transmit",
-    //                BooleanValue (false),
-    //                MakeBooleanAccessor (&TcpHybla::m_limitedTx),
-    //                MakeBooleanChecker ())
   ;
   return tid;
 }
