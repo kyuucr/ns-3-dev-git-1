@@ -151,6 +151,7 @@ def build(bld):
         'model/tcp-newreno.cc',
         'model/tcp-highspeed.cc',
         'model/tcp-westwood.cc',
+        'model/tcp-bic.cc',
         'model/tcp-cubic.cc',
         'model/tcp-noordwijk.cc',
         'model/tcp-hybla.cc',
