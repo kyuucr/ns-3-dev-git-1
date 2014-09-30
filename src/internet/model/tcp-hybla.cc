@@ -60,8 +60,10 @@ TcpHybla::InitializeCwnd ()
   /* set minimum rtt as this is the 1st ever seen */
   m_minRtt = m_rtt->GetCurrentEstimate ();
 
-  TcpNewReno::InitializeCwnd ();
+  m_initialCWnd *= m_rho;
+  m_initialSsThresh = ((m_initialSsThresh / m_segmentSize) * m_rho) * m_segmentSize;
 
+  TcpNewReno::InitializeCwnd ();
 }
 
 void
@@ -102,7 +104,7 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
     {
       /*
        * slow start
-       *      INC = 2^RHO - 1
+       * INC = 2^RHO - 1
        */
       isSlowstart = true;
       NS_ASSERT (m_rho > 0.0);
@@ -116,16 +118,26 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
        */
       NS_ASSERT (m_cWnd.Get () != 0);
       increment = std::pow (m_rho, 2) / ((double) m_cWnd.Get () / m_segmentSize);
+
+      //NS_LOG_UNCOND ("Rho=" << m_rho << " cWnd=" << m_cWnd.Get() << " incr=" << increment);
     }
 
   NS_ASSERT (increment >= 0.0);
 
-  m_cWnd += m_segmentSize * increment;
+  increment *= m_segmentSize;
+
+  uint32_t byte = (uint32_t) increment;
+
+  //m_cWnd += m_segmentSize * increment;
 
   /* clamp down slowstart cwnd to ssthresh value. */
   if (isSlowstart)
     {
-      m_cWnd = std::min (m_cWnd.Get (), m_ssThresh.Get ());
+      m_cWnd = std::min (m_cWnd.Get () + byte, m_ssThresh.Get ());
+    }
+  else
+    {
+      m_cWnd += byte;
     }
 
   TcpSocketBase::NewAck (seq);
