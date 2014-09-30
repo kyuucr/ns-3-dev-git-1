@@ -118,8 +118,6 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
        */
       NS_ASSERT (m_cWnd.Get () != 0);
       increment = std::pow (m_rho, 2) / ((double) m_cWnd.Get () / m_segmentSize);
-
-      //NS_LOG_UNCOND ("Rho=" << m_rho << " cWnd=" << m_cWnd.Get() << " incr=" << increment);
     }
 
   NS_ASSERT (increment >= 0.0);
@@ -127,8 +125,6 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
   increment *= m_segmentSize;
 
   uint32_t byte = (uint32_t) increment;
-
-  //m_cWnd += m_segmentSize * increment;
 
   /* clamp down slowstart cwnd to ssthresh value. */
   if (isSlowstart)
