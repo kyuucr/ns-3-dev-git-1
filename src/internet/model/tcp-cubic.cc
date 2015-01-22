@@ -94,6 +94,10 @@ TcpCubic::GetTypeId (void)
     .AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpCubic::m_cWnd))
+    .AddTraceSource ("SlowStartThreshold",
+                     "TCP slow start threshold (bytes)",
+                     MakeTraceSourceAccessor (&TcpCubic::m_ssThresh),
+                     "ns3::TracedValue::Uint32Callback")
   ;
   return tid;
 }
