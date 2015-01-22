@@ -72,7 +72,6 @@ protected:
     LOSS     = 0x2, //!< Loss state
   };
 
-  uint32_t m_ssThresh;         //!< Slow start threshold
   uint32_t m_initialCwnd;      //!< Initial cWnd
 
   // User parameters
@@ -91,7 +90,8 @@ protected:
   Time         m_epochStart;      //!<  Beginning of an epoch
   Time         m_lastTime;
 
-  TracedValue<uint32_t> m_cWnd;   //!< Congestion window
+  TracedValue<uint32_t> m_cWnd;     //!< Congestion window
+  TracedValue<uint32_t> m_ssThresh; //!< Slow start threshold
 
   uint8_t m_bicState;             //!< Bic state
 
