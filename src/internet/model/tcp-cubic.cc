@@ -113,7 +113,6 @@ TcpCubic::Reset ()
 {
   NS_LOG_FUNCTION (this);
 
-  m_cnt = 0;
   m_lastMaxCwnd = 0;
   m_bicOriginPoint = 0;
   m_bicK = 0;
@@ -213,36 +212,38 @@ void
 TcpCubic::NewAck (SequenceNumber32 const& seq)
 {
   NS_LOG_FUNCTION (this);
-  TcpSocketBase::NewAck (seq);
 
   m_cubicState = OPEN;
   PktsAcked ();
   CongAvoid (seq);
 
   m_lossCwnd = 0;
+
+  TcpSocketBase::NewAck (seq);
 }
 
-void
+uint32_t
 TcpCubic::WindowUpdate ()
 {
   NS_LOG_FUNCTION (this);
   Time t;
-  uint32_t delta, bicTarget;
+  uint32_t delta, bicTarget, cnt = 0;
   uint64_t offs;
+  uint32_t segCwnd = m_cWnd / m_segmentSize;
 
   if (m_epochStart == Time::Min ())
     {
       m_epochStart = Simulator::Now ();   /* record the beginning of an epoch */
 
-      if (m_lastMaxCwnd <= m_cWnd.Get ())
+      if (m_lastMaxCwnd <= segCwnd)
         {
           NS_LOG_DEBUG ("Last Max cWnd < m_cWnd. K=0 and origin=" << m_cWnd);
           m_bicK = 0;
-          m_bicOriginPoint = m_cWnd.Get ();
+          m_bicOriginPoint = segCwnd;
         }
       else
         {
-          m_bicK = std::pow (2.5 * (m_lastMaxCwnd - m_cWnd.Get ()), 1 / 3.);
+          m_bicK = std::pow (2.5 * (m_lastMaxCwnd - segCwnd), 1 / 3.);
           m_bicOriginPoint = m_lastMaxCwnd;
           NS_LOG_DEBUG ("Wow K=" << m_bicK << " and origin=" << m_lastMaxCwnd);
         }
@@ -250,53 +251,64 @@ TcpCubic::WindowUpdate ()
 
   t = Simulator::Now () + m_delayMin - m_epochStart;
 
-  if (t.GetMilliSeconds () < m_bicK)       /* t - K */
+  if (t.GetSeconds () < m_bicK)       /* t - K */
     {
-      offs = m_bicK - t.GetMilliSeconds ();
+      offs = m_bicK - t.GetSeconds ();
+      NS_LOG_DEBUG ("t=" << t.GetSeconds() << " <k: offs=" << offs);
     }
   else
     {
-      offs = t.GetMilliSeconds () - m_bicK;
+      offs = t.GetSeconds () - m_bicK;
+      NS_LOG_DEBUG ("t=" << t.GetSeconds() << " >= k: offs=" << offs);
     }
+
 
   /* Constant value taken from Experimental Evaluation of Cubic Tcp, available at
    * eprints.nuim.ie/1716/1/Hamiltonpfldnet2007_cubic_final.pdf */
   delta = m_c * std::pow (offs, 3);
 
-  if (t.GetMilliSeconds () < m_bicK)                /* below origin*/
+  NS_LOG_DEBUG ("delta: " << delta);
+
+  if (t.GetSeconds () < m_bicK)                /* below origin*/
     {
       bicTarget = m_bicOriginPoint - delta;
+      NS_LOG_DEBUG ("t < k: Bic Target: " << bicTarget);
     }
   else                                              /* above origin*/
     {
       bicTarget = m_bicOriginPoint + delta;
+      NS_LOG_DEBUG ("t >= k: Bic Target: " << bicTarget);
     }
 
-  //bicTarget = std::min (bicTarget, m_rWnd.Get ());
-
-  if (bicTarget > m_cWnd.Get ())
+  // Next the window target is converted into a cnt or count value. CUBIC will
+  // wait until enough new ACKs have arrived that a counter meets or exceeds
+  // this cnt value. This is how the CUBIC implementation simulates growing
+  // cwnd by values other than 1 segment size.
+  if (bicTarget > segCwnd)
     {
-      m_cnt = m_cWnd.Get () / (bicTarget - m_cWnd.Get ());
+      cnt = segCwnd / (bicTarget - segCwnd);
     }
   else
     {
-      m_cnt = 100 * m_cWnd.Get ();     /* Very small increment */
+      cnt = 100 * segCwnd;     /* Very small increment */
     }
 
-  if (m_delayMin.GetMilliSeconds () > 0)
+  if (m_delayMin.GetSeconds () > 0)
     {
-      m_cnt = std::max (m_cnt, (uint32_t) (8 * m_cWnd.Get () / (m_delayMin.GetMilliSeconds () * 20)));
+      cnt = std::max (cnt, (uint32_t) (8 * segCwnd / (m_delayMin.GetSeconds () * 20)));
     }
 
-  if (m_lossCwnd == 0 && m_cnt > m_cntClamp)
+  if (m_lossCwnd == 0 && cnt > m_cntClamp)
     {
-      m_cnt = m_cntClamp; /* When no losses are detected, grow up fast */
+      cnt = m_cntClamp; /* When no losses are detected, grow up fast */
     }
 
-  if (m_cnt == 0)
+  if (cnt == 0)
     {
-      m_cnt = 1;
+      cnt = 1;
     }
+
+  return cnt;
 }
 
 void
@@ -311,20 +323,26 @@ TcpCubic::CongAvoid (const SequenceNumber32& seq)
         }
 
       m_cWnd += m_segmentSize;
+      NS_LOG_DEBUG ("In SS, increment cWnd by one segment size");
     }
   else
     {
-      WindowUpdate ();
+      uint32_t cnt = WindowUpdate ();
 
-      /* Manage the increment in a proper way, avoiding floating point arithmetic */
-      if (m_cWndCnt > m_cnt)
+      // According to the CUBIC paper and RFC 6356 even once the new cwnd is
+      // calculated you must compare this to the number of ACKs received since
+      // the last cwnd update. If not enough ACKs have been received then cwnd
+      // cannot be updated.
+      if (m_cWndCnt > cnt)
         {
           m_cWnd += m_segmentSize;
           m_cWndCnt = 0;
+          NS_LOG_DEBUG("Increment cwnd to " << m_cWnd);
         }
       else
         {
-          m_cWndCnt++;
+          ++m_cWndCnt;
+          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd.");
         }
     }
 }
@@ -341,10 +359,11 @@ TcpCubic::PktsAcked ()
       return;
     }
 
-  Time delay = m_lastRtt;
+  Time delay = m_rtt->GetCurrentEstimate ();
 
   if (delay.GetSeconds () == 0.0)
     {
+      NS_LOG_WARN ("Using fake RTT in Cubic PktsAcked.");
       delay = Time (MilliSeconds (10));
     }
 
@@ -434,39 +453,34 @@ TcpCubic::RecalcSsthresh ()
 {
   NS_LOG_FUNCTION (this);
 
+  uint32_t segCwnd = m_cWnd / m_segmentSize;
+
   if (m_cubicState == LOSS)
     {
       return;
     }
 
-  //Reset ();
-  //HystartReset ();
+  Reset ();
+  HystartReset ();
 
   m_epochStart = Time::Min ();    /* end of epoch */
 
   /* Wmax and fast convergence */
-  if (m_cWnd.Get () < m_lastMaxCwnd && m_fastConvergence)
+  if (segCwnd < m_lastMaxCwnd && m_fastConvergence)
     {
-      m_lastMaxCwnd = 0.9 * m_cWnd.Get ();
+      m_lastMaxCwnd = m_beta * segCwnd;
     }
   else
     {
-      m_lastMaxCwnd = m_cWnd.Get ();
+      m_lastMaxCwnd = segCwnd;
     }
 
-  m_lossCwnd = m_cWnd.Get ();
+  m_lossCwnd = segCwnd;
 
   /* Formula taken from the Linux kernel */
-  m_ssThresh = std::max (static_cast<uint32_t> (m_cWnd.Get () * m_beta),
+  m_ssThresh = std::max (static_cast<uint32_t> (segCwnd * m_beta * m_segmentSize),
                          2U * m_segmentSize);
-
-  /* Constant value taken from Experimental Evaluation of Cubic Tcp, available at
-   * eprints.nuim.ie/1716/1/Hamiltonpfldnet2007_cubic_final.pdf */
-  //m_cWnd = 0.8 * m_cWnd.Get ();
-
-  // If m_cWndAfterLoss is 1, this is what happen in the Linux kernel
-  // after ssthres is called
-  m_cWnd = m_cWndAfterLoss * m_segmentSize;
+  m_cWnd = m_ssThresh;
 }
 
 void

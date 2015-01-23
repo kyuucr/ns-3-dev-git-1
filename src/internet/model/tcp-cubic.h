@@ -140,7 +140,6 @@ protected:
 
   // Cubic parameters
   CubicState   m_cubicState;      //!<  Cubic state \see CubicState
-  uint32_t     m_cnt;             //!<  Increase cwnd by 1 after ACKs
   uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
   uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
   uint32_t     m_lossCwnd;        //!<  Congestion window at last loss
@@ -209,7 +208,7 @@ private:
   /**
    * \brief Cubic window update after a new ack received
    */
-  void WindowUpdate (void);
+  uint32_t WindowUpdate(void);
 
   /**
    * \brief Cubic window update after a loss
