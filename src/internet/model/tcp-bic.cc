@@ -26,10 +26,6 @@ namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED (TcpBic);
 
-
-#define BICTCP_BETA_SCALE    1024   /* Scale factor beta calculation
-                                     * max_cwnd = cwnd * beta
-                                     */
 #define BICTCP_B        4    /*
                               * In binary search,
                               * go to point (max+min)/N
@@ -46,9 +42,9 @@ TcpBic::GetTypeId (void)
                    MakeBooleanAccessor (&TcpBic::m_fastConvergence),
                    MakeBooleanChecker ())
     .AddAttribute ("Beta", "Beta for multiplicative increase",
-                   IntegerValue (819),   /* = 819/1024 (BICTCP_BETA_SCALE) */
-                   MakeIntegerAccessor (&TcpBic::m_beta),
-                   MakeIntegerChecker <int> ())
+                   DoubleValue (0.8),
+                   MakeDoubleAccessor (&TcpBic::m_beta),
+                   MakeDoubleChecker <double> (0.0))
     .AddAttribute ("MaxIncr", "Limit on increment allowed during binary search",
                    UintegerValue (16),
                    MakeUintegerAccessor (&TcpBic::m_maxIncr),
@@ -84,7 +80,6 @@ TcpBic::Reset ()
 {
   NS_LOG_FUNCTION (this);
 
-  m_cnt = 0;
   m_lastMaxCwnd = 0;
   m_epochStart = Time::Min ();
 }
@@ -156,27 +151,34 @@ void
 TcpBic::NewAck (SequenceNumber32 const& seq)
 {
   NS_LOG_FUNCTION (this);
-  TcpSocketBase::NewAck (seq);
 
+  m_bicState = OPEN;
   CongAvoid ();
 
   m_lossCwnd = 0;
+
+  TcpSocketBase::NewAck (seq);
 }
 
 void
 TcpBic::CongAvoid (void)
 {
   NS_LOG_FUNCTION (this);
-  if (m_cWnd.Get () <= m_ssThresh)
+
+  if (m_cWnd <= m_ssThresh)
     {
+      NS_LOG_DEBUG ("SlowStart: Increase cwnd by one segment size");
       m_cWnd += m_segmentSize;
     }
   else
     {
-      Update ();
+      uint32_t cnt = Update ();
 
-      /* Manage the increment in a proper way, avoiding floating point arithmetic */
-      if (m_cWndCnt > m_cnt)
+      // According to the BIC paper and RFC 6356 even once the new cwnd is
+      // calculated you must compare this to the number of ACKs received since
+      // the last cwnd update. If not enough ACKs have been received then cwnd
+      // cannot be updated.
+      if (m_cWndCnt > cnt)
         {
           m_cWnd += m_segmentSize;
           m_cWndCnt = 0;
@@ -188,12 +190,15 @@ TcpBic::CongAvoid (void)
     }
 }
 
-void
+uint32_t
 TcpBic::Update ()
 {
   NS_LOG_FUNCTION (this);
 
-  m_lastCwnd = m_cWnd.Get ();
+  uint32_t segCwnd = m_cWnd / m_segmentSize;
+  uint32_t cnt;
+
+  m_lastCwnd = segCwnd;
   m_lastTime = Simulator::Now ();
 
   if (m_epochStart == Time::Min ())
@@ -201,64 +206,66 @@ TcpBic::Update ()
       m_epochStart = Simulator::Now ();   /* record the beginning of an epoch */
     }
 
-  if (m_cWnd.Get () < m_lowWnd)
+  if (segCwnd < m_lowWnd)
     {
-      m_cnt = m_cWnd.Get ();
-      return;
+      cnt = segCwnd;
+      return cnt;
     }
 
-  if (m_cWnd.Get () < m_lastMaxCwnd)
+  if (segCwnd < m_lastMaxCwnd)
     {
-      uint32_t dist = (m_lastMaxCwnd - m_cWnd.Get ()) / BICTCP_B;
+      uint32_t dist = (m_lastMaxCwnd - segCwnd) / BICTCP_B;
 
       if (dist > m_maxIncr)
         {
           /* Linear increase */
-          m_cnt = m_cWnd.Get () / m_maxIncr;
+          cnt = segCwnd / m_maxIncr;
         }
       else if (dist <= 1)
         {
           /* binary search increase */
-          m_cnt = (m_cWnd.Get () * m_smoothPart) / BICTCP_B;
+          cnt = (segCwnd * m_smoothPart) / BICTCP_B;
         }
       else
         {
           /* binary search increase */
-          m_cnt = m_cWnd.Get () / dist;
+          cnt = segCwnd / dist;
         }
     }
   else
     {
-      if (m_cWnd.Get () < m_lastMaxCwnd + BICTCP_B)
+      if (segCwnd < m_lastMaxCwnd + BICTCP_B)
         {
           /* slow start AMD linear increase */
-          m_cnt = (m_cWnd.Get () * m_smoothPart) / BICTCP_B;
+          cnt = (segCwnd * m_smoothPart) / BICTCP_B;
         }
-      else if (m_cWnd.Get () < m_lastMaxCwnd + m_maxIncr * (BICTCP_B - 1))
+      else if (segCwnd < m_lastMaxCwnd + m_maxIncr * (BICTCP_B - 1))
         {
           /* slow start */
-          m_cnt = (m_cWnd.Get () * (BICTCP_B - 1)) / (m_cWnd.Get () - m_lastMaxCwnd);
+          cnt = (segCwnd * (BICTCP_B - 1)) / (m_cWnd.Get () - m_lastMaxCwnd);
         }
       else
         {
           /* linear increase */
-          m_cnt = m_cWnd / m_maxIncr;
+          cnt = segCwnd / m_maxIncr;
         }
     }
 
   /* if in slow start or link utilization is very low */
   if (m_lastMaxCwnd == 0)
     {
-      if (m_cnt > 20) /* increase cwnd 5% per RTT */
+      if (cnt > 20) /* increase cwnd 5% per RTT */
         {
-          m_cnt = 20;
+          cnt = 20;
         }
     }
 
-  if (m_cnt == 0)
+  if (cnt == 0)
     {
-      m_cnt = 1;
+      cnt = 1;
     }
+
+  return cnt;
 }
 
 void
@@ -268,35 +275,42 @@ TcpBic::RecalcSsthresh ()
 
   if (m_bicState == LOSS)
     {
+      NS_LOG_DEBUG ("Already in LOSS state. No cut on window");
       return;
     }
 
-  //Reset ();
+  uint32_t segCwnd = m_cWnd / m_segmentSize;
+
+  Reset ();
 
   m_epochStart = Time::Min ();    /* end of epoch */
 
   /* Wmax and fast convergence */
-  if (m_cWnd.Get () < m_lastMaxCwnd && m_fastConvergence)
+  if (segCwnd < m_lastMaxCwnd && m_fastConvergence)
     {
-      m_lastMaxCwnd = (m_cWnd.Get () * (BICTCP_BETA_SCALE + m_beta)) / (2 * BICTCP_BETA_SCALE);
+      m_lastMaxCwnd = m_beta * segCwnd;
+      NS_LOG_DEBUG ("Fast Convergence. Last max cwnd: " << m_lastMaxCwnd);
     }
   else
     {
-      m_lastMaxCwnd = m_cWnd.Get ();
+      m_lastMaxCwnd = segCwnd;
+      NS_LOG_DEBUG ("Last max cwnd: " << m_lastMaxCwnd);
     }
 
-  m_lossCwnd = m_cWnd.Get ();
+  m_lossCwnd = segCwnd;
 
-  if (m_cWnd.Get () < m_lowWnd)
+  if (segCwnd < m_lowWnd)
     {
-      m_ssThresh = std::max (m_cWnd.Get () >> 2, 2U * m_segmentSize);
+      m_ssThresh = std::max ((uint32_t) (m_segmentSize * (segCwnd >> 2)), 2U * m_segmentSize);
+      NS_LOG_DEBUG ("Less than lowWindow, ssTh and cWnd= " << m_ssThresh);
     }
   else
     {
-      m_ssThresh = std::max ((uint32_t)(m_cWnd.Get () * m_beta / BICTCP_BETA_SCALE), 2U * m_segmentSize);
+      m_ssThresh = std::max ((uint32_t) (m_segmentSize * (segCwnd * m_beta)), 2U * m_segmentSize);
+      NS_LOG_DEBUG ("More than lowWindow, ssTh and cWnd= " << m_ssThresh);
     }
 
-  m_cWnd = 1 * m_segmentSize;
+  m_cWnd = m_ssThresh;
 }
 
 void
@@ -315,8 +329,8 @@ TcpBic::DupAck (const TcpHeader& t, uint32_t count)
   else if (count > 3)
     {
       // Increase cwnd for every additional dupack (RFC2582, sec.3 bullet #3)
+      NS_LOG_DEBUG ("Fast recovery: cWnd increased by one segment");
       m_cWnd += m_segmentSize;
-      //congAvoid();
       SendPendingData (m_connected);
     }
 }

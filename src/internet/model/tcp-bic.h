@@ -82,7 +82,6 @@ protected:
   int m_smoothPart;
 
   // Bic parameters
-  uint32_t     m_cnt;             //!<  Increase cwnd by 1 after ACKs
   uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
   uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
   uint32_t     m_lastCwnd;        //!<  Last cWnd
@@ -114,7 +113,7 @@ private:
   /**
    * \brief Bic window update after a new ack received
    */
-  void Update (void);
+  uint32_t Update(void);
 
   /**
    * \brief Cubic window update after a loss
