@@ -70,11 +70,14 @@ protected:
   virtual Ptr<TcpSocketBase> Fork (void);
   virtual void NewAck (SequenceNumber32 const& seq);
   virtual void DupAck (const TcpHeader& t, uint32_t count);
+  virtual void Retransmit (void);
 
 private:
   // Functions that return default values, from RFC 3649
   uint32_t  TableLookupA (uint32_t w);
-  float     TableLookupB (uint32_t w);
+  double    TableLookupB (uint32_t w);
+
+  void Loss ();
 };
 
 } // namespace ns3

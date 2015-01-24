@@ -88,15 +88,17 @@ TcpHighSpeed::NewAck (const SequenceNumber32& seq)
     }
 
   // Increase of cwnd based on current phase (slow start or congestion avoidance)
-  if (m_cWnd < m_ssThresh.Get ())
+  if (m_cWnd < m_ssThresh)
     { // Slow start mode, add one segSize to cWnd. Default m_ssThresh is 65535. (RFC2001, sec.1)
       m_cWnd += m_segmentSize;
       NS_LOG_INFO ("In SlowStart, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
     }
   else
     {
-      uint32_t coeffA = TableLookupA (m_cWnd.Get ()) * m_segmentSize;
-      m_cWnd += coeffA / m_cWnd.Get ();
+      uint32_t segCwnd = m_cWnd / m_segmentSize;
+      uint32_t coeffA = TableLookupA (segCwnd);
+      double c = (double) coeffA / segCwnd;
+      m_cWnd += c * m_segmentSize;
       NS_LOG_INFO ("In CongAvoid, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
     }
 
@@ -107,7 +109,6 @@ TcpHighSpeed::NewAck (const SequenceNumber32& seq)
 uint32_t
 TcpHighSpeed::TableLookupA (uint32_t w)
 {
-  w = static_cast<uint32_t> (w / m_segmentSize);
   if (w <= 38)
     {
       return 1;
@@ -406,8 +407,7 @@ TcpHighSpeed::TableLookupA (uint32_t w)
     }
 }
 
-float
-TcpHighSpeed::TableLookupB (uint32_t w)
+double TcpHighSpeed::TableLookupB(uint32_t w)
 {
   w = static_cast<uint32_t> (w / m_segmentSize);
   if (w <= 38)
@@ -708,17 +708,26 @@ TcpHighSpeed::TableLookupB (uint32_t w)
     }
 }
 
+void
+TcpHighSpeed::Loss ()
+{
+  // w = (1-b(w))*w
+  uint32_t segCwnd = m_cWnd / m_segmentSize;
+  double coeffB = 1.0 - TableLookupB (segCwnd);
+  segCwnd = coeffB * segCwnd;
+
+  m_ssThresh = std::max (2 * m_segmentSize, m_cWnd.Get () - (segCwnd*m_segmentSize));
+  m_cWnd = segCwnd * m_segmentSize;
+}
+
 /* Cut cwnd and enter fast recovery mode upon triple dupack */
 void
 TcpHighSpeed::DupAck (const TcpHeader& t, uint32_t count)
 {
   NS_LOG_FUNCTION (this << count);
   if (count == m_retxThresh && !m_inFastRec)
-    { // triple duplicate ack triggers fast retransmit (RFC2582 sec.3 bullet #1)
-      m_ssThresh = std::max (2 * m_segmentSize, BytesInFlight () / 2);
-      //m_cWnd = m_ssThresh + 3 * m_segmentSize;
-      float coeffB = TableLookupB (m_cWnd.Get ());
-      m_cWnd = m_cWnd - (1 - coeffB) * m_cWnd;
+    {
+      Loss ();
       m_recover = m_highTxMark;
       m_inFastRec = true;
       NS_LOG_INFO ("Triple dupack. Enter fast recovery mode. Reset cwnd to " << m_cWnd <<
@@ -737,6 +746,28 @@ TcpHighSpeed::DupAck (const TcpHeader& t, uint32_t count)
       uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, true);
       m_nextTxSequence += sz;                    // Advance next tx sequence
     }
+}
+
+/* Retransmit timeout */
+void
+TcpHighSpeed::Retransmit (void)
+{
+  NS_LOG_FUNCTION (this);
+  NS_LOG_LOGIC (this << " ReTxTimeout Expired at time " << Simulator::Now ().GetSeconds ());
+  m_inFastRec = false;
+
+  // If erroneous timeout in closed/timed-wait state, just return
+  if (m_state == CLOSED || m_state == TIME_WAIT) return;
+  // If all data are received (non-closing socket and nothing to send), just return
+  if (m_state <= ESTABLISHED && m_txBuffer.HeadSequence () >= m_highTxMark) return;
+
+  Loss ();
+
+  m_nextTxSequence = m_txBuffer.HeadSequence (); // Restart from highest Ack
+  NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
+               ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
+  m_rtt->IncreaseMultiplier ();             // Double the next RTO
+  DoRetransmit ();                          // Retransmit the packet
 }
 
 } // namespace ns3
