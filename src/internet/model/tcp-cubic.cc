@@ -359,7 +359,7 @@ TcpCubic::PktsAcked ()
       return;
     }
 
-  Time delay = m_rtt->GetCurrentEstimate ();
+  Time delay = m_rtt->GetEstimate ();
 
   if (delay.GetSeconds () == 0.0)
     {

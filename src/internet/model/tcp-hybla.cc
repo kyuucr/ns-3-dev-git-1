@@ -58,7 +58,7 @@ TcpHybla::InitializeCwnd ()
   RecalcParam ();
 
   /* set minimum rtt as this is the 1st ever seen */
-  m_minRtt = m_rtt->GetCurrentEstimate ();
+  m_minRtt = m_rtt->GetEstimate();
 
   m_initialCWnd *= m_rho;
 
@@ -68,7 +68,7 @@ TcpHybla::InitializeCwnd ()
 void
 TcpHybla::RecalcParam ()
 {
-  Time rtt = m_rtt->GetCurrentEstimate ();
+  Time rtt = m_rtt->GetEstimate ();
 
   m_rho = std::max ((double)rtt.GetMilliSeconds () / m_rRtt.GetMilliSeconds (), 1.0);
   m_ssThresh *= m_rho;
@@ -84,7 +84,7 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
   double increment;
   bool isSlowstart = false;
 
-  Time rtt = m_rtt->GetCurrentEstimate ();
+  Time rtt = m_rtt->GetEstimate ();
 
   /*  Recalculate rho only if this srtt is the lowest */
   if (rtt < m_minRtt)
@@ -188,7 +188,6 @@ TcpHybla::Retransmit (void)
   m_nextTxSequence = m_txBuffer.HeadSequence (); // Restart from highest Ack
   NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
                ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
-  m_rtt->IncreaseMultiplier ();             // Double the next RTO
   DoRetransmit ();                          // Retransmit the packet
 }
 
