@@ -105,7 +105,6 @@ void PacketSink::DoDispose (void)
   Application::DoDispose ();
 }
 
-
 // Application Methods
 void PacketSink::StartApplication ()    // Called at time specified by Start
 {
@@ -114,21 +113,22 @@ void PacketSink::StartApplication ()    // Called at time specified by Start
   if (!m_socket)
     {
       m_socket = Socket::CreateSocket (GetNode (), m_tid);
-      m_socket->Bind (m_local);
-      m_socket->Listen ();
-      m_socket->ShutdownSend ();
-      if (addressUtils::IsMulticast (m_local))
+    }
+
+  m_socket->Bind (m_local);
+  m_socket->Listen ();
+  m_socket->ShutdownSend ();
+  if (addressUtils::IsMulticast (m_local))
+    {
+      Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socket);
+      if (udpSocket)
         {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socket);
-          if (udpSocket)
-            {
-              // equivalent to setsockopt (MCAST_JOIN_GROUP)
-              udpSocket->MulticastJoinGroup (0, m_local);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: joining multicast on a non-UDP socket");
-            }
+          // equivalent to setsockopt (MCAST_JOIN_GROUP)
+          udpSocket->MulticastJoinGroup (0, m_local);
+        }
+      else
+        {
+          NS_FATAL_ERROR ("Error: joining multicast on a non-UDP socket");
         }
     }
 
@@ -139,6 +139,12 @@ void PacketSink::StartApplication ()    // Called at time specified by Start
   m_socket->SetCloseCallbacks (
     MakeCallback (&PacketSink::HandlePeerClose, this),
     MakeCallback (&PacketSink::HandlePeerError, this));
+}
+
+void
+PacketSink::SetSocket(Ptr<Socket> socket)
+{
+  m_socket = socket;
 }
 
 void PacketSink::StopApplication ()     // Called at time specified by Stop

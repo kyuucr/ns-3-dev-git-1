@@ -142,6 +142,12 @@ OnOffApplication::DoDispose (void)
   Application::DoDispose ();
 }
 
+void
+OnOffApplication::SetSocket(Ptr<Socket> socket)
+{
+  m_socket = socket;
+}
+
 // Application Methods
 void OnOffApplication::StartApplication () // Called at time specified by Start
 {
@@ -151,23 +157,24 @@ void OnOffApplication::StartApplication () // Called at time specified by Start
   if (!m_socket)
     {
       m_socket = Socket::CreateSocket (GetNode (), m_tid);
-      if (Inet6SocketAddress::IsMatchingType (m_peer))
-        {
-          m_socket->Bind6 ();
-        }
-      else if (InetSocketAddress::IsMatchingType (m_peer) ||
-               PacketSocketAddress::IsMatchingType (m_peer))
-        {
-          m_socket->Bind ();
-        }
-      m_socket->Connect (m_peer);
-      m_socket->SetAllowBroadcast (true);
-      m_socket->ShutdownRecv ();
+    }
+  if (Inet6SocketAddress::IsMatchingType (m_peer))
+    {
+      m_socket->Bind6 ();
+    }
+  else if (InetSocketAddress::IsMatchingType (m_peer) ||
+           PacketSocketAddress::IsMatchingType (m_peer))
+    {
+      m_socket->Bind ();
+    }
+  m_socket->Connect (m_peer);
+  m_socket->SetAllowBroadcast (true);
+  m_socket->ShutdownRecv ();
 
-      m_socket->SetConnectCallback (
+  m_socket->SetConnectCallback (
         MakeCallback (&OnOffApplication::ConnectionSucceeded, this),
         MakeCallback (&OnOffApplication::ConnectionFailed, this));
-    }
+
   m_cbrRateFailSafe = m_cbrRate;
 
   // Insure no pending event
@@ -293,6 +300,7 @@ void OnOffApplication::SendPacket ()
                    << " port " << Inet6SocketAddress::ConvertFrom (m_peer).GetPort ()
                    << " total Tx " << m_totBytes << " bytes");
     }
+
   m_lastStartTime = Simulator::Now ();
   m_residualBits = 0;
   ScheduleNextTx ();

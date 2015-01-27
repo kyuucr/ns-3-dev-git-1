@@ -91,6 +91,8 @@ public:
    * \return list of pointers to accepted sockets
    */
   std::list<Ptr<Socket> > GetAcceptedSockets (void) const;
+
+  void SetSocket (Ptr<Socket> socket);
  
 protected:
   virtual void DoDispose (void);

@@ -112,6 +112,8 @@ public:
    */
   Ptr<Socket> GetSocket (void) const;
 
+  void SetSocket (Ptr<Socket> socket);
+
  /**
   * \brief Assign a fixed random variable stream number to the random variables
   * used by this model.

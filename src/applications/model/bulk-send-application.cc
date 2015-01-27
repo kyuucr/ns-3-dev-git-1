@@ -52,6 +52,10 @@ BulkSendApplication::GetTypeId (void)
                    AddressValue (),
                    MakeAddressAccessor (&BulkSendApplication::m_peer),
                    MakeAddressChecker ())
+    .AddAttribute ("Local", "The address to bind to",
+                   AddressValue (),
+                   MakeAddressAccessor (&BulkSendApplication::m_local),
+                   MakeAddressChecker ())
     .AddAttribute ("MaxBytes",
                    "The total number of bytes to send. "
                    "Once these bytes are sent, "
@@ -109,6 +113,12 @@ BulkSendApplication::DoDispose (void)
   Application::DoDispose ();
 }
 
+void
+BulkSendApplication::SetSocket(Ptr<Socket> socket)
+{
+  m_socket = socket;
+}
+
 // Application Methods
 void BulkSendApplication::StartApplication (void) // Called at time specified by Start
 {
@@ -118,33 +128,33 @@ void BulkSendApplication::StartApplication (void) // Called at time specified by
   if (!m_socket)
     {
       m_socket = Socket::CreateSocket (GetNode (), m_tid);
-
-      // Fatal error if socket type is not NS3_SOCK_STREAM or NS3_SOCK_SEQPACKET
-      if (m_socket->GetSocketType () != Socket::NS3_SOCK_STREAM &&
-          m_socket->GetSocketType () != Socket::NS3_SOCK_SEQPACKET)
-        {
-          NS_FATAL_ERROR ("Using BulkSend with an incompatible socket type. "
-                          "BulkSend requires SOCK_STREAM or SOCK_SEQPACKET. "
-                          "In other words, use TCP instead of UDP.");
-        }
-
-      if (Inet6SocketAddress::IsMatchingType (m_peer))
-        {
-          m_socket->Bind6 ();
-        }
-      else if (InetSocketAddress::IsMatchingType (m_peer))
-        {
-          m_socket->Bind ();
-        }
-
-      m_socket->Connect (m_peer);
-      m_socket->ShutdownRecv ();
-      m_socket->SetConnectCallback (
-        MakeCallback (&BulkSendApplication::ConnectionSucceeded, this),
-        MakeCallback (&BulkSendApplication::ConnectionFailed, this));
-      m_socket->SetSendCallback (
-        MakeCallback (&BulkSendApplication::DataSend, this));
     }
+  // Fatal error if socket type is not NS3_SOCK_STREAM or NS3_SOCK_SEQPACKET
+  if (m_socket->GetSocketType () != Socket::NS3_SOCK_STREAM &&
+      m_socket->GetSocketType () != Socket::NS3_SOCK_SEQPACKET)
+    {
+      NS_FATAL_ERROR ("Using BulkSend with an incompatible socket type. "
+                      "BulkSend requires SOCK_STREAM or SOCK_SEQPACKET. "
+                      "In other words, use TCP instead of UDP.");
+    }
+
+  if (Inet6SocketAddress::IsMatchingType (m_peer))
+    {
+      m_socket->Bind6 ();
+    }
+  else if (InetSocketAddress::IsMatchingType (m_peer))
+    {
+      m_socket->Bind (m_local);
+    }
+
+  m_socket->Connect (m_peer);
+  m_socket->ShutdownRecv ();
+  m_socket->SetConnectCallback (
+              MakeCallback (&BulkSendApplication::ConnectionSucceeded, this),
+              MakeCallback (&BulkSendApplication::ConnectionFailed, this));
+  m_socket->SetSendCallback (
+              MakeCallback (&BulkSendApplication::DataSend, this));
+
   if (m_connected)
     {
       SendData ();
@@ -200,6 +210,9 @@ void BulkSendApplication::SendData (void)
   // Check if time to close (all sent)
   if (m_totBytes == m_maxBytes && m_connected)
     {
+      if (! m_dataTransferred.IsNull ())
+        m_dataTransferred (m_node);
+
       m_socket->Close ();
       m_connected = false;
     }
@@ -229,6 +242,9 @@ void BulkSendApplication::DataSend (Ptr<Socket>, uint32_t)
     }
 }
 
-
+void BulkSendApplication::SetDataTransferredCallback (Callback<void, Ptr<Node> > dataTransferred)
+{
+  m_dataTransferred = dataTransferred;
+}
 
 } // Namespace ns3

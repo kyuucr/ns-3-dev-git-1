@@ -94,10 +94,28 @@ public:
   void SetMaxBytes (uint32_t maxBytes);
 
   /**
-   * \brief Get the socket this application is attached to.
-   * \return pointer to associated socket
+   * \brief Get the socket of this application
+   *
+   * \return pointer to the socket
    */
   Ptr<Socket> GetSocket (void) const;
+
+  /**
+   * \brief (Optional) Set the application socket
+   *
+   * The socket will be created by the application if this
+   * method is not called.
+   *
+   * \param socket Socket pointer
+   */
+  void SetSocket (Ptr<Socket> socket);
+
+  /**
+   * \brief Set the callback to call when all data has been transmitted
+   * \param cbDataTransferred Callback
+   */
+  void SetDataTransferredCallback (Callback<void, Ptr<Node> >
+                                   cbDataTransferred);
 
 protected:
   virtual void DoDispose (void);
@@ -106,6 +124,8 @@ private:
   virtual void StartApplication (void);    // Called at time specified by Start
   virtual void StopApplication (void);     // Called at time specified by Stop
 
+  Callback<void, Ptr<Node> > m_dataTransferred;  //!< callback to call when all
+                                                 // data has been transmitted
   /**
    * \brief Send data until the L4 transmission buffer is full.
    */
@@ -113,6 +133,7 @@ private:
 
   Ptr<Socket>     m_socket;       //!< Associated socket
   Address         m_peer;         //!< Peer address
+  Address         m_local;        //!< Local address
   bool            m_connected;    //!< True if connected
   uint32_t        m_sendSize;     //!< Size of data to send each time
   uint32_t        m_maxBytes;     //!< Limit total number of bytes sent
