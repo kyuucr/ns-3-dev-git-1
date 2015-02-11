@@ -61,6 +61,7 @@ TcpHybla::InitializeCwnd ()
   m_minRtt = m_rtt->GetEstimate();
 
   m_initialCWnd *= m_rho;
+  m_initialSsThresh *= (m_rho*m_segmentSize);
 
   TcpNewReno::InitializeCwnd ();
 }
@@ -70,10 +71,17 @@ TcpHybla::RecalcParam ()
 {
   Time rtt = m_rtt->GetEstimate ();
 
-  m_rho = std::max ((double)rtt.GetMilliSeconds () / m_rRtt.GetMilliSeconds (), 1.0);
-  m_ssThresh *= m_rho;
+  double oldRho = m_rho;
 
-  NS_LOG_DEBUG ("Recalc: rho=" << m_rho);
+  m_rho = std::max ((double)rtt.GetMilliSeconds () / m_rRtt.GetMilliSeconds (), 1.0);
+
+  /* Bring back the ssThresh to the original value, without m_rho multiplied */
+  m_ssThresh /= (oldRho*m_segmentSize);
+
+  /* Now update ssThresh */
+  m_ssThresh *= (m_rho*m_segmentSize);
+
+  NS_LOG_DEBUG ("New rho=" << m_rho);
 }
 
 void
