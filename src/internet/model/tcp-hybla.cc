@@ -32,7 +32,7 @@ TypeId
 TcpHybla::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::TcpHybla")
-    .SetParent<TcpHybla> ()
+    .SetParent<TcpNewReno> ()
     .AddConstructor<TcpHybla> ()
     .AddAttribute ("RRTT", "Reference RTT",
                    TimeValue (MilliSeconds (50)),
@@ -77,13 +77,18 @@ TcpHybla::RecalcParam ()
 
   m_rho = std::max ((double)rtt.GetMilliSeconds () / m_rRtt.GetMilliSeconds (), 1.0);
 
+  if (m_rho >= 20)
+    {
+      m_rho = 1.0;
+    }
+
   /* Bring back the ssThresh to the original value, without m_rho multiplied */
   m_ssThresh /= (oldRho*m_segmentSize);
 
   /* Now update ssThresh */
   m_ssThresh *= (m_rho*m_segmentSize);
 
-  NS_LOG_DEBUG ("New rho=" << m_rho);
+  NS_LOG_DEBUG ("Calculated rho=" << m_rho);
 }
 
 void
@@ -103,6 +108,10 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
       m_minRtt = rtt;
     }
 
+  uint32_t segCwnd = m_cWnd / m_segmentSize;
+
+  NS_LOG_DEBUG ("NewAck, cwnd is " << segCwnd);
+
   if (m_cWnd.Get () < m_ssThresh.Get ())
     {
       /*
@@ -121,37 +130,31 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
        * INC = RHO^2 / W
        */
       NS_ASSERT (m_cWnd.Get () != 0);
-      increment = std::pow (m_rho, 2) / ((double) m_cWnd.Get () / m_segmentSize);
+      increment = std::pow (m_rho, 2) / ((double) segCwnd);
       NS_LOG_DEBUG ("Cong avoid: inc=" << increment);
     }
 
   NS_ASSERT (increment >= 0.0);
 
-  uint32_t byte = (uint32_t) increment*m_segmentSize;
+  uint32_t byte = increment*m_segmentSize;
 
   /* clamp down slowstart cwnd to ssthresh value. */
   if (isSlowstart)
     {
       m_cWnd = std::min (m_cWnd.Get () + byte, m_ssThresh.Get ());
-      NS_LOG_DEBUG ("Slow start: new cwnd=" << m_cWnd << "ssth= " << m_ssThresh);
+      NS_LOG_DEBUG ("Slow start: new cwnd=" << m_cWnd/m_segmentSize << "ssth= " << m_ssThresh/m_segmentSize);
     }
   else
     {
-      uint32_t cnt = (m_cWnd/m_segmentSize) / increment;
+      m_cWndCnt += increment;
 
-      if (m_cWndCnt > cnt)
+      while (m_cWndCnt > 1)
         {
           m_cWnd += m_segmentSize;
-          m_cWndCnt = 0;
-          NS_LOG_DEBUG("Increment cwnd to " << m_cWnd);
-        }
-      else
-        {
-          ++m_cWndCnt;
-          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd.");
+          m_cWndCnt -= 1;
         }
 
-      NS_LOG_DEBUG (Simulator::Now ().GetSeconds() << " Cong avoid: new cwnd=" << m_cWnd << "ssth= " << m_ssThresh);
+      NS_LOG_DEBUG (Simulator::Now ().GetSeconds() << " Cong avoid: new cwnd=" << m_cWnd/m_segmentSize << "ssth= " << m_ssThresh/m_segmentSize);
       NS_LOG_DEBUG ("m_ss=" << m_segmentSize);
     }
 
