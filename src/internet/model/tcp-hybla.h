@@ -46,13 +46,14 @@ public:
 protected:
   virtual Ptr<TcpSocketBase> Fork (void);
   virtual void NewAck (SequenceNumber32 const& seq);
-
+  void DupAck (const TcpHeader& t, uint32_t count);
   virtual void InitializeCwnd (void);
 
 protected:
   double     m_rho;         //!< Rho parameter
   Time       m_minRtt;      //!< Minimum smoothed round trip time value seen
   Time       m_rRtt;        //!< Reference RTT
+  uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
 
 private:
   /**

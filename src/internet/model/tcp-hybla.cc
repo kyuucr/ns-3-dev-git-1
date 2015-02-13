@@ -32,7 +32,7 @@ TypeId
 TcpHybla::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::TcpHybla")
-    .SetParent<TcpNewReno> ()
+    .SetParent<TcpHybla> ()
     .AddConstructor<TcpHybla> ()
     .AddAttribute ("RRTT", "Reference RTT",
                    TimeValue (MilliSeconds (50)),
@@ -47,6 +47,8 @@ TcpHybla::TcpHybla () : TcpNewReno ()
   m_minRtt = Time::Max ();
 
   m_rho = 1.0;
+  m_cWndCnt = 0;
+
 }
 
 void
@@ -63,7 +65,7 @@ TcpHybla::InitializeCwnd ()
   m_initialCWnd *= m_rho;
   m_initialSsThresh *= (m_rho*m_segmentSize);
 
-  TcpNewReno::InitializeCwnd ();
+  TcpHybla::InitializeCwnd ();
 }
 
 void
@@ -125,9 +127,7 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
 
   NS_ASSERT (increment >= 0.0);
 
-  increment *= m_segmentSize;
-
-  uint32_t byte = (uint32_t) increment;
+  uint32_t byte = (uint32_t) increment*m_segmentSize;
 
   /* clamp down slowstart cwnd to ssthresh value. */
   if (isSlowstart)
@@ -137,13 +137,54 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
     }
   else
     {
-      m_cWnd += byte;
+      uint32_t cnt = (m_cWnd/m_segmentSize) / increment;
+
+      if (m_cWndCnt > cnt)
+        {
+          m_cWnd += m_segmentSize;
+          m_cWndCnt = 0;
+          NS_LOG_DEBUG("Increment cwnd to " << m_cWnd);
+        }
+      else
+        {
+          ++m_cWndCnt;
+          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd.");
+        }
 
       NS_LOG_DEBUG (Simulator::Now ().GetSeconds() << " Cong avoid: new cwnd=" << m_cWnd << "ssth= " << m_ssThresh);
       NS_LOG_DEBUG ("m_ss=" << m_segmentSize);
     }
 
   TcpSocketBase::NewAck (seq);
+}
+
+/* Cut cwnd and enter fast recovery mode upon triple dupack */
+void
+TcpHybla::DupAck (const TcpHeader& t, uint32_t count)
+{
+  NS_LOG_FUNCTION (this << count);
+  if (count == m_retxThresh && !m_inFastRec)
+    { // triple duplicate ack triggers fast retransmit (RFC2582 sec.3 bullet #1)
+      m_ssThresh = std::max (2 * m_segmentSize, BytesInFlight () / 2);
+      m_cWnd = m_ssThresh + 3 * m_segmentSize;
+      m_recover = m_highTxMark;
+      m_inFastRec = true;
+      NS_LOG_INFO ("Triple dupack. Enter fast recovery mode. Reset cwnd to " << m_cWnd <<
+                   ", ssthresh to " << m_ssThresh << " at fast recovery seqnum " << m_recover);
+      DoRetransmit ();
+    }
+  else if (m_inFastRec)
+    { // Increase cwnd for every additional dupack (RFC2582, sec.3 bullet #3)
+      //m_cWnd += m_segmentSize;
+      NS_LOG_INFO ("Dupack in fast recovery mode. Increase cwnd to " << m_cWnd);
+      SendPendingData (m_connected);
+    }
+  else if (!m_inFastRec && m_limitedTx && m_txBuffer->SizeFromSequence (m_nextTxSequence) > 0)
+    { // RFC3042 Limited transmit: Send a new packet for each duplicated ACK before fast retransmit
+      NS_LOG_INFO ("Limited transmit");
+      uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, true);
+      m_nextTxSequence += sz;                    // Advance next tx sequence
+    };
 }
 
 Ptr<TcpSocketBase>
