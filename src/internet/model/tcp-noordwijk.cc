@@ -17,11 +17,6 @@
  *
  */
 
-#define NS_LOG_APPEND_CONTEXT \
-  if (m_node) \
-    { std::clog << Simulator::Now ().GetSeconds () << \
-        " [node " << m_node->GetId () << "] "; }
-
 #include "tcp-noordwijk.h"
 #include "ns3/node.h"
 #include "ns3/log.h"
@@ -127,8 +122,6 @@ TcpNoordwijk::InitializeCwnd ()
   m_bWnd = m_initialBWnd;
 
   m_txTime = m_initialTxTime;
-
-  NS_ASSERT (m_bWnd <= 65536); // HardCode this.
 
   NS_LOG_DEBUG ("bWnd: " << m_bWnd << ", txTime: " <<
                 m_initialTxTime.GetMilliSeconds () << " ms");
