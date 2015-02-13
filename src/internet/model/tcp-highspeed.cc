@@ -82,7 +82,7 @@ TcpHighSpeed::NewAck (const SequenceNumber32& seq)
     }
   else if (m_inFastRec && seq >= m_recover)
     { // Full ACK (RFC2582 sec.3 bullet #5 paragraph 2, option 1)
-      m_cWnd = std::min (m_ssThresh.Get (), BytesInFlight () + m_segmentSize);
+      //m_cWnd = std::min (m_ssThresh.Get (), BytesInFlight () + m_segmentSize);
       m_inFastRec = false;
       NS_LOG_INFO ("Received full ACK. Leaving fast recovery with cwnd set to " << m_cWnd);
     }
@@ -409,7 +409,7 @@ TcpHighSpeed::TableLookupA (uint32_t w)
 
 double TcpHighSpeed::TableLookupB(uint32_t w)
 {
-  w = static_cast<uint32_t> (w / m_segmentSize);
+  w = static_cast<uint32_t> (w);
   if (w <= 38)
     {
       return 0.50;
@@ -713,11 +713,15 @@ TcpHighSpeed::Loss ()
 {
   // w = (1-b(w))*w
   uint32_t segCwnd = m_cWnd / m_segmentSize;
+  uint32_t oldCwnd = m_cWnd;
   double coeffB = 1.0 - TableLookupB (segCwnd);
   segCwnd = coeffB * segCwnd;
 
   m_ssThresh = std::max (2 * m_segmentSize, m_cWnd.Get () - (segCwnd*m_segmentSize));
   m_cWnd = segCwnd * m_segmentSize;
+
+  NS_LOG_DEBUG ("HIGHSPEED LOSS. BEFORE cwnd=" << (oldCwnd/m_segmentSize) << " now=" << m_cWnd/m_segmentSize
+                << " with coeffB=" << coeffB);
 }
 
 /* Cut cwnd and enter fast recovery mode upon triple dupack */
