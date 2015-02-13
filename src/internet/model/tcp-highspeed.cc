@@ -73,8 +73,8 @@ TcpHighSpeed::NewAck (const SequenceNumber32& seq)
   // Check for exit condition of fast recovery
   if (m_inFastRec && seq < m_recover)
     { // Partial ACK, partial window deflation (RFC2582 sec.3 bullet #5 paragraph 3)
-      m_cWnd -= seq - m_txBuffer.HeadSequence ();
-      m_cWnd += m_segmentSize;  // increase cwnd
+      //m_cWnd -= seq - m_txBuffer->HeadSequence ();
+      //m_cWnd += m_segmentSize;  // increase cwnd
       NS_LOG_INFO ("Partial ACK in fast recovery: cwnd set to " << m_cWnd);
       TcpSocketBase::NewAck (seq); // update m_nextTxSequence and send new data if allowed by window
       DoRetransmit (); // Assume the next seq is lost. Retransmit lost packet
@@ -736,11 +736,11 @@ TcpHighSpeed::DupAck (const TcpHeader& t, uint32_t count)
     }
   else if (m_inFastRec)
     { // Increase cwnd for every additional dupack (RFC2582, sec.3 bullet #3)
-      m_cWnd += m_segmentSize;
+      //m_cWnd += m_segmentSize;
       NS_LOG_INFO ("Dupack in fast recovery mode. Increase cwnd to " << m_cWnd);
       SendPendingData (m_connected);
     }
-  else if (!m_inFastRec && m_limitedTx && m_txBuffer.SizeFromSequence (m_nextTxSequence) > 0)
+  else if (!m_inFastRec && m_limitedTx && m_txBuffer->SizeFromSequence (m_nextTxSequence) > 0)
     { // RFC3042 Limited transmit: Send a new packet for each duplicated ACK before fast retransmit
       NS_LOG_INFO ("Limited transmit");
       uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, true);
@@ -759,11 +759,11 @@ TcpHighSpeed::Retransmit (void)
   // If erroneous timeout in closed/timed-wait state, just return
   if (m_state == CLOSED || m_state == TIME_WAIT) return;
   // If all data are received (non-closing socket and nothing to send), just return
-  if (m_state <= ESTABLISHED && m_txBuffer.HeadSequence () >= m_highTxMark) return;
+  if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark) return;
 
   Loss ();
 
-  m_nextTxSequence = m_txBuffer.HeadSequence (); // Restart from highest Ack
+  m_nextTxSequence = m_txBuffer->HeadSequence (); // Restart from highest Ack
   NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
                ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
   DoRetransmit ();                          // Retransmit the packet

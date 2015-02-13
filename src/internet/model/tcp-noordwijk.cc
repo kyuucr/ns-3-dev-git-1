@@ -340,7 +340,7 @@ TcpNoordwijk::NewAck (SequenceNumber32 const& rAck)
       return;
     }
 
-  uint32_t bytesAcked = rAck - m_txBuffer.HeadSequence ();
+  uint32_t bytesAcked = rAck - m_txBuffer->HeadSequence ();
   uint32_t segmentAcked = bytesAcked / m_segmentSize;
 
   NS_ASSERT (bytesAcked >= 0);
@@ -356,7 +356,7 @@ TcpNoordwijk::NewAck (SequenceNumber32 const& rAck)
   // from i=1.
   for (uint32_t i = 1; i <= segmentAcked; ++i)
     {
-      SequenceNumber32 ack = m_txBuffer.HeadSequence () + (m_segmentSize * i);
+      SequenceNumber32 ack = m_txBuffer->HeadSequence () + (m_segmentSize * i);
       Time rtt = now - GetTransmitTime (ack);
       DiscardTimeUpTo (ack);
 
@@ -774,14 +774,14 @@ TcpNoordwijk::Retransmit (void)
       return;
     }
   // If all data are received (non-closing socket and nothing to send), just return
-  if (m_state <= ESTABLISHED && m_txBuffer.HeadSequence () >= m_highTxMark)
+  if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark)
     {
       return;
     }
 
   NS_LOG_DEBUG ("Retransmit");
 
-//  if (m_txBuffer.HeadSequence () == m_lastAckedSegmentInRTO)
+//  if (m_txBuffer->HeadSequence () == m_lastAckedSegmentInRTO)
 //    {
   m_initialTxTime = m_initialTxTime + m_initialTxTime;
   if (m_initialTxTime.GetSeconds () > 1.0)
@@ -800,7 +800,7 @@ TcpNoordwijk::Retransmit (void)
     }
 //    }
 
-  m_lastAckedSegmentInRTO = m_txBuffer.HeadSequence ();
+  m_lastAckedSegmentInRTO = m_txBuffer->HeadSequence ();
 
   TcpSocketBase::Retransmit ();
 
