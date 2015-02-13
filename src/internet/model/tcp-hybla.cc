@@ -146,59 +146,6 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
   TcpSocketBase::NewAck (seq);
 }
 
-/* Cut cwnd and enter fast recovery mode upon triple dupack */
-void
-TcpHybla::DupAck (const TcpHeader& t, uint32_t count)
-{
-  NS_LOG_FUNCTION (this << count);
-  if (count == m_retxThresh && !m_inFastRec)
-    { // triple duplicate ack triggers fast retransmit (RFC2582 sec.3 bullet #1)
-      m_ssThresh = std::max (2 * m_segmentSize, m_cWnd.Get () / 2);
-      m_cWnd = m_ssThresh;
-      m_recover = m_highTxMark;
-      m_inFastRec = true;
-      NS_LOG_INFO ("Triple dupack. Enter fast recovery mode. Reset cwnd to " << m_cWnd <<
-                   ", ssthresh to " << m_ssThresh << " at fast recovery seqnum " << m_recover);
-      DoRetransmit ();
-    }
-  else if (m_inFastRec)
-    { // Increase cwnd for every additional dupack (RFC2582, sec.3 bullet #3)
-      //m_cWnd += m_segmentSize;
-      NS_LOG_INFO ("Dupack in fast recovery mode. Increase cwnd to " << m_cWnd);
-      SendPendingData (m_connected);
-    }
-  else if (!m_inFastRec && m_limitedTx && m_txBuffer.SizeFromSequence (m_nextTxSequence) > 0)
-    { // RFC3042 Limited transmit: Send a new packet for each duplicated ACK before fast retransmit
-      NS_LOG_INFO ("Limited transmit");
-      uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, true);
-      m_nextTxSequence += sz;                    // Advance next tx sequence
-    };
-}
-
-/* Retransmit timeout */
-void
-TcpHybla::Retransmit (void)
-{
-  NS_LOG_FUNCTION (this);
-  NS_LOG_LOGIC (this << " ReTxTimeout Expired at time " << Simulator::Now ().GetSeconds ());
-  m_inFastRec = false;
-
-  // If erroneous timeout in closed/timed-wait state, just return
-  if (m_state == CLOSED || m_state == TIME_WAIT) return;
-  // If all data are received (non-closing socket and nothing to send), just return
-  if (m_state <= ESTABLISHED && m_txBuffer.HeadSequence () >= m_highTxMark) return;
-
-  // According to RFC2581 sec.3.1, upon RTO, ssthresh is set to half of flight
-  // size and cwnd is set to 1*MSS, then the lost packet is retransmitted and
-  // TCP back to slow start
-  m_ssThresh = std::max (2 * m_segmentSize, m_cWnd.Get () / 2);
-  m_cWnd = m_segmentSize;
-  m_nextTxSequence = m_txBuffer.HeadSequence (); // Restart from highest Ack
-  NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
-               ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
-  DoRetransmit ();                          // Retransmit the packet
-}
-
 Ptr<TcpSocketBase>
 TcpHybla::Fork (void)
 {
