@@ -85,7 +85,6 @@ protected:
   uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
   uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
   uint32_t     m_lastCwnd;        //!<  Last cWnd
-  uint32_t     m_lossCwnd;        //!<  Congestion window at last loss
   Time         m_epochStart;      //!<  Beginning of an epoch
   Time         m_lastTime;
 
