@@ -142,7 +142,6 @@ protected:
   CubicState   m_cubicState;      //!<  Cubic state \see CubicState
   uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
   uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
-  uint32_t     m_lossCwnd;        //!<  Congestion window at last loss
   uint32_t     m_bicOriginPoint;  //!<  Origin point of bic function
   uint32_t     m_bicK;            //!<  Time to origin point from the beginning of the current epoch
   Time         m_delayMin;        //!<  Min delay

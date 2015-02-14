@@ -44,7 +44,7 @@ TcpCubic::GetTypeId (void)
                    MakeDoubleAccessor (&TcpCubic::m_beta),
                    MakeDoubleChecker <double> (0.0))
     .AddAttribute ("HyStart", "Enable (true) or disable (false) hybrid slow start algorithm",
-                   BooleanValue (true),
+                   BooleanValue (false),
                    MakeBooleanAccessor (&TcpCubic::m_hystart),
                    MakeBooleanChecker ())
     .AddAttribute ("HyStartLowWindow", "Lower bound cWnd for hybrid slow start (segments)",
@@ -140,7 +140,6 @@ TcpCubic::Listen (void)
   Init ();
 
   Reset ();
-  m_lossCwnd = 0;
 
   if (m_hystart)
     {
@@ -168,7 +167,6 @@ TcpCubic::Connect (const Address & address)
   Init ();
 
   Reset ();
-  m_lossCwnd = 0;
 
   if (m_hystart)
     {
@@ -217,8 +215,6 @@ TcpCubic::NewAck (SequenceNumber32 const& seq)
   PktsAcked ();
   CongAvoid (seq);
 
-  m_lossCwnd = 0;
-
   TcpSocketBase::NewAck (seq);
 }
 
@@ -230,6 +226,7 @@ TcpCubic::WindowUpdate ()
   uint32_t delta, bicTarget, cnt = 0;
   uint64_t offs;
   uint32_t segCwnd = m_cWnd / m_segmentSize;
+  NS_LOG_DEBUG ("New ack. cWnd=" << segCwnd);
 
   if (m_epochStart == Time::Min ())
     {
@@ -287,26 +284,24 @@ TcpCubic::WindowUpdate ()
   if (bicTarget > segCwnd)
     {
       cnt = segCwnd / (bicTarget - segCwnd);
+      NS_LOG_DEBUG ("target>cwnd. cnt="  << cnt);
     }
   else
     {
-      cnt = 100 * segCwnd;     /* Very small increment */
+      cnt = 100 * segCwnd;
     }
 
-  if (m_delayMin.GetSeconds () > 0)
+  if (m_lastMaxCwnd == 0 && cnt > m_cntClamp)
     {
-      cnt = std::max (cnt, (uint32_t) (8 * segCwnd / (m_delayMin.GetSeconds () * 20)));
-    }
-
-  if (m_lossCwnd == 0 && cnt > m_cntClamp)
-    {
-      cnt = m_cntClamp; /* When no losses are detected, grow up fast */
+      cnt = m_cntClamp;
     }
 
   if (cnt == 0)
     {
       cnt = 1;
     }
+
+  NS_LOG_DEBUG ("After all, cnt="  << cnt);
 
   return cnt;
 }
@@ -315,7 +310,7 @@ void
 TcpCubic::CongAvoid (const SequenceNumber32& seq)
 {
   NS_LOG_FUNCTION (this);
-  if (m_cWnd.Get () <= m_ssThresh)
+  if (m_cWnd.Get () < m_ssThresh)
     {
       if (m_hystart && seq > m_endSeq)
         {
@@ -327,6 +322,7 @@ TcpCubic::CongAvoid (const SequenceNumber32& seq)
     }
   else
     {
+      ++m_cWndCnt;
       uint32_t cnt = WindowUpdate ();
 
       // According to the CUBIC paper and RFC 6356 even once the new cwnd is
@@ -341,8 +337,7 @@ TcpCubic::CongAvoid (const SequenceNumber32& seq)
         }
       else
         {
-          ++m_cWndCnt;
-          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd.");
+          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd. Until now " << m_cWndCnt);
         }
     }
 }
@@ -454,6 +449,7 @@ TcpCubic::RecalcSsthresh ()
   NS_LOG_FUNCTION (this);
 
   uint32_t segCwnd = m_cWnd / m_segmentSize;
+  NS_LOG_DEBUG ("Loss at cWnd=" << segCwnd);
 
   if (m_cubicState == LOSS)
     {
@@ -475,12 +471,12 @@ TcpCubic::RecalcSsthresh ()
       m_lastMaxCwnd = segCwnd;
     }
 
-  m_lossCwnd = segCwnd;
-
   /* Formula taken from the Linux kernel */
   m_ssThresh = std::max (static_cast<uint32_t> (segCwnd * m_beta * m_segmentSize),
                          2U * m_segmentSize);
   m_cWnd = m_ssThresh;
+
+  NS_LOG_DEBUG ("Imposing cwnd and ssth=" << m_cWnd/m_segmentSize);
 }
 
 void
@@ -501,8 +497,7 @@ TcpCubic::DupAck (const TcpHeader& t, uint32_t count)
     }
   else if (count > 3)
     {
-      // Increase cwnd for every additional dupack (RFC2582, sec.3 bullet #3)
-      m_cWnd += m_segmentSize;
+      CongAvoid(SequenceNumber32 (0));
       SendPendingData (m_connected);
     }
 }
