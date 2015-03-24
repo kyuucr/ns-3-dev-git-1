@@ -76,10 +76,6 @@ TcpCubic::GetTypeId (void)
                    TimeValue (MilliSeconds (10)),
                    MakeTimeAccessor (&TcpCubic::m_cubicDelta),
                    MakeTimeChecker ())
-    .AddAttribute ("CwndAfterLoss", "Congestion window size after a loss (segments)",
-                   UintegerValue (1),
-                   MakeUintegerAccessor (&TcpCubic::m_cWndAfterLoss),
-                   MakeUintegerChecker <uint32_t> ())
     .AddAttribute ("CntClamp", "Counter value when no losses are detected (counter is used" \
                    " when incrementing cWnd in congestion avoidance, to avoid" \
                    " floating point arithmetic). It is the modulo of the (avoided)" \
@@ -105,6 +101,7 @@ TcpCubic::GetTypeId (void)
 
 TcpCubic::TcpCubic () : TcpSocketBase ()
 {
+  NS_LOG_FUNCTION_NOARGS ();
   m_cWndCnt = 0;
 }
 
@@ -430,6 +427,8 @@ TcpCubic::HystartUpdate (const Time& delay)
 Time
 TcpCubic::HystartDelayThresh (Time t) const
 {
+  NS_LOG_FUNCTION (this);
+
   Time ret = t;
   if (t > m_hystartDelayMax)
     {
@@ -517,6 +516,7 @@ TcpCubic::Retransmit (void)
 Ptr<TcpSocketBase>
 TcpCubic::Fork (void)
 {
+  NS_LOG_FUNCTION (this);
   return CopyObject<TcpCubic> (this);
 }
 

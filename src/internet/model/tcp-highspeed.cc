@@ -711,6 +711,7 @@ double TcpHighSpeed::TableLookupB(uint32_t w)
 void
 TcpHighSpeed::Loss ()
 {
+  NS_LOG_FUNCTION (this);
   // w = (1-b(w))*w
   uint32_t segCwnd = m_cWnd / m_segmentSize;
   uint32_t oldCwnd = m_cWnd;

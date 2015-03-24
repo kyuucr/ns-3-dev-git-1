@@ -361,6 +361,7 @@ TcpBic::Retransmit (void)
 Ptr<TcpSocketBase>
 TcpBic::Fork (void)
 {
+  NS_LOG_FUNCTION (this);
   return CopyObject<TcpBic> (this);
 }
 

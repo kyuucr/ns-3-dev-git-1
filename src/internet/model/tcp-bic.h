@@ -43,6 +43,9 @@ public:
    */
   static TypeId GetTypeId (void);
 
+  /**
+   * \brief Constructor
+   */
   TcpBic ();
 
   // From TcpSocketBase
@@ -79,7 +82,7 @@ protected:
   double   m_beta;             //!< Beta for cubic multiplicative increase
   uint32_t m_maxIncr;          //!< Maximum window increment
   uint32_t m_lowWnd;           //!< Lower bound on congestion window
-  int m_smoothPart;
+  int m_smoothPart;            //!< Number of RTT needed to reach Wmax from Wmax-B
 
   // Bic parameters
   uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter

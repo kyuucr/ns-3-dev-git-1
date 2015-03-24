@@ -21,7 +21,6 @@
 #include "ns3/log.h"
 #include "ns3/node.h"
 
-
 NS_LOG_COMPONENT_DEFINE ("TcpHybla");
 
 namespace ns3 {
@@ -44,11 +43,12 @@ TcpHybla::GetTypeId (void)
 
 TcpHybla::TcpHybla () : TcpNewReno ()
 {
+  NS_LOG_FUNCTION_NOARGS ();
+
   m_minRtt = Time::Max ();
 
   m_rho = 1.0;
   m_cWndCnt = 0;
-
 }
 
 void
@@ -71,6 +71,7 @@ TcpHybla::InitializeCwnd ()
 void
 TcpHybla::RecalcParam ()
 {
+  NS_LOG_FUNCTION (this);
   Time rtt = m_rtt->GetEstimate ();
 
   double oldRho = m_rho;
@@ -142,7 +143,8 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
   if (isSlowstart)
     {
       m_cWnd = std::min (m_cWnd.Get () + byte, m_ssThresh.Get ());
-      NS_LOG_DEBUG ("Slow start: new cwnd=" << m_cWnd/m_segmentSize << "ssth= " << m_ssThresh/m_segmentSize);
+      NS_LOG_DEBUG ("Slow start: new cwnd=" << m_cWnd/m_segmentSize << "ssth= " <<
+                    m_ssThresh/m_segmentSize);
     }
   else
     {
@@ -154,8 +156,8 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
           m_cWndCnt -= 1;
         }
 
-      NS_LOG_DEBUG (Simulator::Now ().GetSeconds() << " Cong avoid: new cwnd=" << m_cWnd/m_segmentSize << "ssth= " << m_ssThresh/m_segmentSize);
-      NS_LOG_DEBUG ("m_ss=" << m_segmentSize);
+      NS_LOG_DEBUG ("Cong avoid: new cwnd=" << m_cWnd/m_segmentSize <<
+                    "ssth= " << m_ssThresh/m_segmentSize);
     }
 
   TcpSocketBase::NewAck (seq);
@@ -193,6 +195,7 @@ TcpHybla::DupAck (const TcpHeader& t, uint32_t count)
 Ptr<TcpSocketBase>
 TcpHybla::Fork (void)
 {
+  NS_LOG_FUNCTION (this);
   return CopyObject<TcpHybla> (this);
 }
 

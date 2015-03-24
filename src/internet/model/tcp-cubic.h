@@ -133,7 +133,6 @@ protected:
   uint8_t  m_hystartMinSamples;//!< Number of delay samples for detecting the increase of delay
 
   uint32_t m_initialCwnd;      //!< Initial cWnd
-  uint32_t m_cWndAfterLoss;    //!< cWnd after detecting a loss
   uint8_t  m_cntClamp;         //!< Modulo of the (avoided) float division for cWnd
 
   double   m_c;                //!< Cubic Scaling factor
@@ -207,7 +206,7 @@ private:
   /**
    * \brief Cubic window update after a new ack received
    */
-  uint32_t WindowUpdate(void);
+  uint32_t WindowUpdate (void);
 
   /**
    * \brief Cubic window update after a loss

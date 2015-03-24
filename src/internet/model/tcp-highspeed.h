@@ -73,10 +73,28 @@ protected:
   virtual void Retransmit (void);
 
 private:
-  // Functions that return default values, from RFC 3649
+  /**
+   * \brief Lookup table for a (from RFC 3649)
+   *
+   * \param w Window value (in packets)
+   *
+   * \return the coefficent a
+   */
   uint32_t  TableLookupA (uint32_t w);
+
+  /**
+   * \brief Lookup table for b (from RFC 3649)
+   *
+   * \param w Window value (in packets)
+   *
+   * \return the coefficent b
+   */
   double    TableLookupB (uint32_t w);
 
+  /**
+   * \brief Update cWnd and ssTh after a loss event
+   *
+   */
   void Loss ();
 };
 

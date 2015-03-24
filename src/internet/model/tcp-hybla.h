@@ -53,7 +53,7 @@ protected:
   double     m_rho;         //!< Rho parameter
   Time       m_minRtt;      //!< Minimum smoothed round trip time value seen
   Time       m_rRtt;        //!< Reference RTT
-  double     m_cWndCnt;         //!<  cWnd integer-to-float counter
+  double     m_cWndCnt;     //!< cWnd integer-to-float counter
 
 private:
   /**
