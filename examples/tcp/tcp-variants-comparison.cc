@@ -177,7 +177,9 @@ int main (int argc, char *argv[])
 
 
   CommandLine cmd;
-  cmd.AddValue ("transport_prot", "Transport protocol to use: TcpTahoe, TcpReno, TcpNewReno, TcpWestwood, TcpWestwoodPlus ", transport_prot);
+  cmd.AddValue ("transport_prot", "Transport protocol to use: TcpTahoe, TcpReno, TcpNewReno, "\
+                                  "TcpWestwood, TcpWestwoodPlus, TcpCubic, TcpHighSpeed, "\
+                                  "TcpHybla, TcpBic", transport_prot);
   cmd.AddValue ("error_p", "Packet error rate", error_p);
   cmd.AddValue ("bandwidth", "Bottleneck bandwidth", bandwidth);
   cmd.AddValue ("access_bandwidth", "Access link bandwidth", access_bandwidth);
@@ -244,6 +246,22 @@ int main (int argc, char *argv[])
       Config::SetDefault ("ns3::TcpWestwood::ProtocolType", EnumValue (TcpWestwood::WESTWOODPLUS));
       Config::SetDefault ("ns3::TcpWestwood::FilterType", EnumValue (TcpWestwood::TUSTIN));
     }
+  else if (transport_prot.compare ("TcpBic") == 0)
+    { // the default protocol type in ns3::TcpWestwood is Bic
+      Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId ()));
+    }
+  else if (transport_prot.compare ("TcpCubic") == 0)
+    { // the default protocol type in ns3::TcpWestwood is Cubic
+      Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpCubic::GetTypeId ()));
+    }
+  else if (transport_prot.compare ("TcpHybla") == 0)
+    { // the default protocol type in ns3::TcpWestwood is Hybla
+      Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpHybla::GetTypeId ()));
+    }
+  else if (transport_prot.compare ("TcpHighSpeed") == 0)
+    { // the default protocol type in ns3::TcpWestwood is HighSpeed
+      Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpHighSpeed::GetTypeId ()));
+    }
   else
     {
       NS_LOG_DEBUG ("Invalid TCP version");
@@ -308,32 +326,20 @@ int main (int argc, char *argv[])
     {
       AddressValue remoteAddress (InetSocketAddress (sink_interfaces.GetAddress (i, 0), port));
 
-      if (transport_prot.compare ("TcpTahoe") == 0
-          || transport_prot.compare ("TcpReno") == 0
-          || transport_prot.compare ("TcpNewReno") == 0
-          || transport_prot.compare ("TcpWestwood") == 0
-          || transport_prot.compare ("TcpWestwoodPlus") == 0)
-        {
-          Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
-          BulkSendHelper ftp ("ns3::TcpSocketFactory", Address ());
-          ftp.SetAttribute ("Remote", remoteAddress);
-          ftp.SetAttribute ("SendSize", UintegerValue (tcp_adu_size));
-          ftp.SetAttribute ("MaxBytes", UintegerValue (int(data_mbytes * 1000000)));
+      Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
+      BulkSendHelper ftp ("ns3::TcpSocketFactory", Address ());
+      ftp.SetAttribute ("Remote", remoteAddress);
+      ftp.SetAttribute ("SendSize", UintegerValue (tcp_adu_size));
+      ftp.SetAttribute ("MaxBytes", UintegerValue (int(data_mbytes * 1000000)));
 
-          ApplicationContainer sourceApp = ftp.Install (sources.Get (i));
-          sourceApp.Start (Seconds (start_time * i));
-          sourceApp.Stop (Seconds (stop_time - 3));
+      ApplicationContainer sourceApp = ftp.Install (sources.Get (i));
+      sourceApp.Start (Seconds (start_time * i));
+      sourceApp.Stop (Seconds (stop_time - 3));
 
-          sinkHelper.SetAttribute ("Protocol", TypeIdValue (TcpSocketFactory::GetTypeId ()));
-          ApplicationContainer sinkApp = sinkHelper.Install (sinks);
-          sinkApp.Start (Seconds (start_time * i));
-          sinkApp.Stop (Seconds (stop_time));
-        }
-      else
-        {
-          NS_LOG_DEBUG ("Invalid transport protocol " << transport_prot << " specified");
-          exit (1);
-        }
+      sinkHelper.SetAttribute ("Protocol", TypeIdValue (TcpSocketFactory::GetTypeId ()));
+      ApplicationContainer sinkApp = sinkHelper.Install (sinks);
+      sinkApp.Start (Seconds (start_time * i));
+      sinkApp.Stop (Seconds (stop_time));
     }
 
   // Set up tracing if enabled
