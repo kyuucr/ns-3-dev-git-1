@@ -529,4 +529,10 @@ TcpCubic::Window (void)
   return std::min (m_rWnd.Get (), m_cWnd.Get ());
 }
 
+void
+TcpCubic::ScaleSsThresh (uint8_t scaleFactor)
+{
+  m_ssThresh <<= scaleFactor;
+}
+
 }

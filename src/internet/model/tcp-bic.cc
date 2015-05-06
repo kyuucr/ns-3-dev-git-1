@@ -374,4 +374,10 @@ TcpBic::Window (void)
   return std::min (m_rWnd.Get (), m_cWnd.Get ());
 }
 
+void
+TcpBic::ScaleSsThresh (uint8_t scaleFactor)
+{
+  m_ssThresh <<= scaleFactor;
+}
+
 } // namespace ns3

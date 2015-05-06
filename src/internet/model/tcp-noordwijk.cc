@@ -71,6 +71,13 @@ TcpNoordwijk::TcpNoordwijk () : TcpSocketBase (),
 }
 
 void
+TcpNoordwijk::ScaleSsThresh (uint8_t scaleFactor)
+{
+  (void) scaleFactor;
+  NS_LOG_WARN ("TcpNoordwijk does not perform slow start");
+}
+
+void
 TcpNoordwijk::SetInitialSSThresh (uint32_t threshold)
 {
   (void) threshold;
