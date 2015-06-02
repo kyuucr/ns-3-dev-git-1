@@ -65,7 +65,7 @@ TcpHybla::InitializeCwnd ()
   m_initialCWnd *= m_rho;
   m_initialSsThresh *= (m_rho*m_segmentSize);
 
-  TcpHybla::InitializeCwnd ();
+  TcpNewReno::InitializeCwnd ();
 }
 
 void

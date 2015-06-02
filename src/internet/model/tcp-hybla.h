@@ -57,11 +57,6 @@ protected:
 
 private:
   /**
-   * \brief Initialize the algorithm
-   */
-  void Init (void);
-
-  /**
    * \brief Recalculate algorithm paramenters
    */
   void RecalcParam (void);
