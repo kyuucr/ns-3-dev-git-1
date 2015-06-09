@@ -26,18 +26,13 @@ namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED (TcpBic);
 
-#define BICTCP_B        4    /*
-                              * In binary search,
-                              * go to point (max+min)/N
-                              */
-
 TypeId
 TcpBic::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::TcpBic")
     .SetParent<TcpSocketBase> ()
     .AddConstructor<TcpBic> ()
-    .AddAttribute ("FastConvergence", "Turn on/off fast convergence",
+    .AddAttribute ("FastConvergence", "Turn on/off fast convergence.",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpBic::m_fastConvergence),
                    MakeBooleanChecker ())
@@ -49,7 +44,7 @@ TcpBic::GetTypeId (void)
                    UintegerValue (16),
                    MakeUintegerAccessor (&TcpBic::m_maxIncr),
                    MakeUintegerChecker <uint32_t> ())
-    .AddAttribute ("LowWnd", "Lower bound on congestion window (for TCP friendliness)",
+    .AddAttribute ("LowWnd", "Threshold window size (in segments) for engaging BIC response",
                    UintegerValue (14),
                    MakeUintegerAccessor (&TcpBic::m_lowWnd),
                    MakeUintegerChecker <uint32_t> ())
@@ -57,6 +52,14 @@ TcpBic::GetTypeId (void)
                    IntegerValue (5),
                    MakeIntegerAccessor (&TcpBic::m_smoothPart),
                    MakeIntegerChecker <int> ())
+    .AddAttribute ("BinarySearchCoefficient", "Inverse of the coefficient for the binary search. Default 4, as in Linux",
+                   UintegerValue (4),
+                   MakeUintegerAccessor (&TcpBic::m_b),
+                   MakeUintegerChecker <uint8_t> ())
+    .AddAttribute ("ReTxThreshold", "Threshold for fast retransmit",
+                   UintegerValue (3),
+                   MakeUintegerAccessor (&TcpBic::m_retxThresh),
+                   MakeUintegerChecker<uint32_t> ())
     .AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpBic::m_cWnd),
@@ -87,7 +90,7 @@ TcpBic::Reset ()
 void
 TcpBic::SetInitialSSThresh (uint32_t threshold)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << threshold);
   m_ssThresh = threshold;
 }
 
@@ -99,10 +102,10 @@ TcpBic::GetInitialSSThresh (void) const
 }
 
 void
-TcpBic::SetInitialCwnd (uint32_t cwnd)
+TcpBic::SetInitialCwnd (uint32_t cWnd)
 {
-  NS_LOG_FUNCTION (this);
-  m_initialCwnd = cwnd;
+  NS_LOG_FUNCTION (this << cWnd);
+  m_initialCwnd = cWnd;
 }
 
 uint32_t
@@ -148,7 +151,7 @@ TcpBic::Connect (const Address & address)
 void
 TcpBic::NewAck (SequenceNumber32 const& seq)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << seq);
 
   m_bicState = OPEN;
   CongAvoid ();
@@ -215,7 +218,7 @@ TcpBic::Update ()
 
   if (segCwnd < m_lastMaxCwnd)
     {
-      double dist = (m_lastMaxCwnd - segCwnd) / BICTCP_B;
+      double dist = (m_lastMaxCwnd - segCwnd) / m_b;
 
       NS_LOG_DEBUG ("Under lastMax. lastMaxCwnd="<<m_lastMaxCwnd << " and dist=" << dist);
       if (dist > m_maxIncr)
@@ -227,7 +230,7 @@ TcpBic::Update ()
       else if (dist <= 1)
         {
           /* binary search increase */
-          cnt = (segCwnd * m_smoothPart) / BICTCP_B;
+          cnt = (segCwnd * m_smoothPart) / m_b;
 
           NS_LOG_DEBUG ("Binary search increase (smoothParth="<<m_smoothPart<<"), cnt=" << cnt);
         }
@@ -242,16 +245,16 @@ TcpBic::Update ()
   else
     {
       NS_LOG_DEBUG ("Above last max. lastMaxCwnd="<<m_lastMaxCwnd);
-      if (segCwnd < m_lastMaxCwnd + BICTCP_B)
+      if (segCwnd < m_lastMaxCwnd + m_b)
         {
           /* slow start AMD linear increase */
-          cnt = (segCwnd * m_smoothPart) / BICTCP_B;
+          cnt = (segCwnd * m_smoothPart) / m_b;
           NS_LOG_DEBUG ("Slow start AMD, cnt=" << cnt);
         }
-      else if (segCwnd < m_lastMaxCwnd + m_maxIncr * (BICTCP_B - 1))
+      else if (segCwnd < m_lastMaxCwnd + m_maxIncr * (m_b - 1))
         {
           /* slow start */
-          cnt = (segCwnd * (BICTCP_B - 1)) / (segCwnd - m_lastMaxCwnd);
+          cnt = (segCwnd * (m_b - 1)) / (segCwnd - m_lastMaxCwnd);
 
           NS_LOG_DEBUG ("Slow start, cnt=" << cnt);
         }
@@ -329,17 +332,17 @@ TcpBic::RecalcSsthresh ()
 void
 TcpBic::DupAck (const TcpHeader& t, uint32_t count)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << t << count);
   (void) t;
 
   /* After 3 DUPAcks, there is a Loss. */
-  if (count == 3)
+  if (count == m_retxThresh)
     {
       RecalcSsthresh ();
       m_bicState = LOSS;
       DoRetransmit ();
     }
-  else if (count > 3)
+  else if (count > m_retxThresh)
     {
       CongAvoid();
       SendPendingData (m_connected);
@@ -377,6 +380,7 @@ TcpBic::Window (void)
 void
 TcpBic::ScaleSsThresh (uint8_t scaleFactor)
 {
+  NS_LOG_FUNCTION (this << static_cast<int> (scaleFactor));
   m_ssThresh <<= scaleFactor;
 }
 
