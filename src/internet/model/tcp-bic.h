@@ -45,12 +45,31 @@ namespace ns3 {
  * can be treated as the new maximum, and the reduced (with a multiplicative
  * decrease factor Beta) window size can be used as the new minimum.
  *
+ * To maintain the performance of TCP Bic as close as possible with the Linux
+ * implementation, and at the same time maintain the friendliness with other TCP
+ * flavors, the cWnd is increased only after a certain number of ACKs
+ * are received, following RFC 6356. After the slow start phase, and after each
+ * new ACK, a value is calculated by the method Update. This number
+ * (m_cnt in the code) represents the ACK packets that should be received
+ * before increasing the cWnd by one segment. After a trivial check on the
+ * arrived ACKs (represented by m_cWndCnt in the code), the
+ * cWnd can be increased and m_cWndCnt can be set to zero, or
+ * otherwise m_cWndCnt can be increased by one and the
+ * cWnd can be left untouched.
+ *
+ * The binary search on the cWnd size space is done by varying the returned
+ * cnt, depending on the internal state of the class (e.g. the last maximum
+ * and the current cWnd size).
+ *
  * The reference paper for BIC can be found in:
  * http://an.kaist.ac.kr/courses/2006/cs540/reading/bic-tcp.pdf
  *
  * This model has a number of configurable parameters that are exposed as
- * attributes of the TcpBic TypeId.  This model also exports two trace sources,
- * for tracking the congestion window and slow start threshold.
+ * attributes of the TcpBic TypeId.  This model also exports trace sources,
+ * for tracking the congestion window, slow start threshold, and the internat
+ * state of the protocol.
+ *
+ * More information on this implementation: http://dl.acm.org/citation.cfm?id=2756518
  */
 class TcpBic : public TcpSocketBase
 {
@@ -60,6 +79,15 @@ public:
    * \return the object TypeId
    */
   static TypeId GetTypeId (void);
+
+  /**
+   * \brief State of the congestion control machine: open or loss
+   */
+  enum BicState
+  {
+    OPEN     = 0x1, //!< Open state
+    LOSS     = 0x2  //!< Loss state
+  };
 
   /**
    * \brief Constructor
@@ -85,15 +113,10 @@ protected:
   virtual void     ScaleSsThresh (uint8_t scaleFactor);
 
 protected:
-  /**
-   * \brief State of the congestion control machine: open or loss
-   */
-  enum BicState
-  {
-    OPEN     = 0x1, //!< Open state
-    LOSS     = 0x2, //!< Loss state
-  };
+  TracedValue<uint32_t> m_cWnd;     //!< Congestion window
+  TracedValue<uint32_t> m_ssThresh; //!< Slow start threshold
 
+private:
   uint32_t m_initialCwnd;      //!< Initial cWnd
 
   // User parameters
@@ -108,14 +131,11 @@ protected:
   uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
   uint32_t     m_lastCwnd;        //!<  Last cWnd
   Time         m_epochStart;      //!<  Beginning of an epoch
-  Time         m_lastTime;
 
-  TracedValue<uint32_t> m_cWnd;     //!< Congestion window
-  TracedValue<uint32_t> m_ssThresh; //!< Slow start threshold
+  TracedValue<uint8_t>  m_bicState; //!< Bic state
 
-  uint8_t  m_bicState;               //!< Bic state
-  uint8_t  m_b;                      //!< Binary search coefficient
-  uint32_t m_retxThresh;             //!< Fast Retransmit threshold
+  uint8_t  m_b;                     //!< Binary search coefficient
+  uint32_t m_retxThresh;            //!< Fast Retransmit threshold
 
 private:
   /**
@@ -129,17 +149,17 @@ private:
   void Init (void);
 
   /**
-   * \brief The congestion avoidance phase of Cubic
+   * \brief The congestion avoidance algorithm of BIC is implemented here
    */
   void CongAvoid (void);
 
   /**
    * \brief Bic window update after a new ack received
    */
-  uint32_t Update(void);
+  uint32_t Update (void);
 
   /**
-   * \brief Cubic window update after a loss
+   * \brief Window update after a loss
    */
   void RecalcSsthresh (void);
 };

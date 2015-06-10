@@ -32,30 +32,35 @@ TcpBic::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::TcpBic")
     .SetParent<TcpSocketBase> ()
     .AddConstructor<TcpBic> ()
+    .SetGroupName ("Internet")
     .AddAttribute ("FastConvergence", "Turn on/off fast convergence.",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpBic::m_fastConvergence),
                    MakeBooleanChecker ())
-    .AddAttribute ("Beta", "Beta for multiplicative increase",
+    .AddAttribute ("Beta", "Beta for multiplicative decrease",
                    DoubleValue (0.8),
                    MakeDoubleAccessor (&TcpBic::m_beta),
                    MakeDoubleChecker <double> (0.0))
     .AddAttribute ("MaxIncr", "Limit on increment allowed during binary search",
                    UintegerValue (16),
                    MakeUintegerAccessor (&TcpBic::m_maxIncr),
-                   MakeUintegerChecker <uint32_t> ())
+                   MakeUintegerChecker <uint32_t> (1))
     .AddAttribute ("LowWnd", "Threshold window size (in segments) for engaging BIC response",
                    UintegerValue (14),
                    MakeUintegerAccessor (&TcpBic::m_lowWnd),
                    MakeUintegerChecker <uint32_t> ())
-    .AddAttribute ("SmoothPart", "log(B/(B*Smin))/log(B/(B-1))+B, # of RTT from Wmax-B to Wmax",
+    .AddAttribute ("SmoothPart", "Number of RTT needed to approach cWnd_max from "
+                   "cWnd_max-BinarySearchCoefficient. It can be viewed as the gradient "
+                   "of the slow start AIM phase: less this value is, "
+                   "more steep the increment will be.",
                    IntegerValue (5),
                    MakeIntegerAccessor (&TcpBic::m_smoothPart),
-                   MakeIntegerChecker <int> ())
-    .AddAttribute ("BinarySearchCoefficient", "Inverse of the coefficient for the binary search. Default 4, as in Linux",
+                   MakeIntegerChecker <int> (1))
+    .AddAttribute ("BinarySearchCoefficient", "Inverse of the coefficient for the "
+                   "binary search. Default 4, as in Linux",
                    UintegerValue (4),
                    MakeUintegerAccessor (&TcpBic::m_b),
-                   MakeUintegerChecker <uint8_t> ())
+                   MakeUintegerChecker <uint8_t> (2))
     .AddAttribute ("ReTxThreshold", "Threshold for fast retransmit",
                    UintegerValue (3),
                    MakeUintegerAccessor (&TcpBic::m_retxThresh),
@@ -68,6 +73,10 @@ TcpBic::GetTypeId (void)
                      "TCP slow start threshold (bytes)",
                      MakeTraceSourceAccessor (&TcpBic::m_ssThresh),
                      "ns3::TracedValue::Uint32Callback")
+    .AddTraceSource ("BicState",
+                     "State of TCP BIC",
+                     MakeTraceSourceAccessor (&TcpBic::m_bicState),
+                     "ns3::TracedValue::Uint8Callback")
   ;
   return tid;
 }
@@ -174,19 +183,20 @@ TcpBic::CongAvoid (void)
       ++m_cWndCnt;
       uint32_t cnt = Update ();
 
-      // According to the BIC paper and RFC 6356 even once the new cwnd is
-      // calculated you must compare this to the number of ACKs received since
-      // the last cwnd update. If not enough ACKs have been received then cwnd
-      // cannot be updated.
+      /* According to the BIC paper and RFC 6356 even once the new cwnd is
+       * calculated you must compare this to the number of ACKs received since
+       * the last cwnd update. If not enough ACKs have been received then cwnd
+       * cannot be updated.
+       */
       if (m_cWndCnt > cnt)
         {
           m_cWnd += m_segmentSize;
           m_cWndCnt = 0;
-          NS_LOG_DEBUG("Increment cwnd to " << m_cWnd/m_segmentSize);
+          NS_LOG_DEBUG ("Increment cwnd to " << m_cWnd / m_segmentSize);
         }
       else
         {
-          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd. Until now " << m_cWndCnt);
+          NS_LOG_DEBUG ("Not enough segments have been ACKed to increment cwnd. Until now " << m_cWndCnt);
         }
     }
 }
@@ -200,7 +210,6 @@ TcpBic::Update ()
   uint32_t cnt;
 
   m_lastCwnd = segCwnd;
-  m_lastTime = Simulator::Now ();
 
   NS_LOG_DEBUG ("New ack. cWnd=" << segCwnd);
 
@@ -212,7 +221,7 @@ TcpBic::Update ()
   if (segCwnd < m_lowWnd)
     {
       cnt = segCwnd;
-      NS_LOG_DEBUG ("cWnd less than lowWnd ("<<m_lowWnd<<")");
+      NS_LOG_DEBUG ("cWnd less than lowWnd (" << m_lowWnd << ")");
       return cnt;
     }
 
@@ -220,19 +229,22 @@ TcpBic::Update ()
     {
       double dist = (m_lastMaxCwnd - segCwnd) / m_b;
 
-      NS_LOG_DEBUG ("Under lastMax. lastMaxCwnd="<<m_lastMaxCwnd << " and dist=" << dist);
+      NS_LOG_DEBUG ("Under lastMax. lastMaxCwnd=" << m_lastMaxCwnd << " and dist=" << dist);
       if (dist > m_maxIncr)
         {
           /* Linear increase */
           cnt = segCwnd / m_maxIncr;
-          NS_LOG_DEBUG ("Linear increase (maxIncr="<<m_maxIncr<<"), cnt=" << cnt);
+          NS_LOG_DEBUG ("Linear increase (maxIncr=" << m_maxIncr << "), cnt=" << cnt);
         }
       else if (dist <= 1)
         {
-          /* binary search increase */
+          /* smoothed binary search increase: when our window is really
+           * close to the last maximum, we parametrize in m_smoothPart the number
+           * of RTT needed to reach that window.
+           */
           cnt = (segCwnd * m_smoothPart) / m_b;
 
-          NS_LOG_DEBUG ("Binary search increase (smoothParth="<<m_smoothPart<<"), cnt=" << cnt);
+          NS_LOG_DEBUG ("Binary search increase (smoothParth=" << m_smoothPart << "), cnt=" << cnt);
         }
       else
         {
@@ -244,7 +256,7 @@ TcpBic::Update ()
     }
   else
     {
-      NS_LOG_DEBUG ("Above last max. lastMaxCwnd="<<m_lastMaxCwnd);
+      NS_LOG_DEBUG ("Above last max. lastMaxCwnd=" << m_lastMaxCwnd);
       if (segCwnd < m_lastMaxCwnd + m_b)
         {
           /* slow start AMD linear increase */
@@ -267,7 +279,10 @@ TcpBic::Update ()
         }
     }
 
-  /* if in slow start or link utilization is very low */
+  /* if in slow start or link utilization is very low. Code taken from Linux
+   * kernel, not sure of the source they take it. Usually, it is not reached,
+   * since if m_lastMaxCwnd is 0, we are (hopefully) in slow start.
+   */
   if (m_lastMaxCwnd == 0)
     {
       if (cnt > 20) /* increase cwnd 5% per RTT */
@@ -318,12 +333,12 @@ TcpBic::RecalcSsthresh ()
   if (segCwnd < m_lowWnd)
     {
       m_ssThresh = std::max ((uint32_t) (m_segmentSize * (segCwnd >> 2)), 2U * m_segmentSize);
-      NS_LOG_DEBUG ("Less than lowWindow, ssTh and cWnd= " << m_ssThresh/m_segmentSize);
+      NS_LOG_DEBUG ("Less than lowWindow, ssTh and cWnd= " << m_ssThresh / m_segmentSize);
     }
   else
     {
       m_ssThresh = std::max ((uint32_t) (m_segmentSize * (segCwnd * m_beta)), 2U * m_segmentSize);
-      NS_LOG_DEBUG ("More than lowWindow, ssTh and cWnd= " << m_ssThresh/m_segmentSize);
+      NS_LOG_DEBUG ("More than lowWindow, ssTh and cWnd= " << m_ssThresh / m_segmentSize);
     }
 
   m_cWnd = m_ssThresh;
@@ -344,7 +359,7 @@ TcpBic::DupAck (const TcpHeader& t, uint32_t count)
     }
   else if (count > m_retxThresh)
     {
-      CongAvoid();
+      CongAvoid ();
       SendPendingData (m_connected);
     }
 }

@@ -27,22 +27,22 @@ namespace ns3 {
 /**
  * \ingroup tcp
  *
- * \brief An implementation of Tcp HighSpeed
+ * \brief An implementation of TCP HighSpeed
  *
- * This class contains the HighSpeed TCP implementation, as of \RFC{3649}.
- * When an ACK is received (in congestion avoidance), the window is increased
- * by a(w)/w and when a loss is detected through triple duplicate
- * acknowledgments, the window is decreased by (1-b(w))w, where w is the current
- * window size. When the congestion window is small, HSTCP behaves exactly
- * like standard TCP so a(w) is 1 and b(w) is 0.5. When TCP's congestion window
- * is beyond a certain threshold, a(w) and b(w) become functions of the
- * current window size. In this region, as the congestion window increases,
- * the value of a(w) increases and the value of b(w) decreases.
- * This means that HSTCP's window will grow faster than standard TCP
- * and also recover from losses more quickly. This behavior allows
- * HSTCP to be friendly to standard TCP flows in normal networks and
- * also to quickly utilize available bandwidth in networks with large
- * bandwidth delay products.
+ * TCP HighSpeed is designed for high-capacity channels or, in general, for
+ * TCP connections with large congestion windows.
+ * Conceptually, with respect to the standard TCP, HighSpeed makes the
+ * cWnd grow faster during the probing phases and accelerates the
+ * cWnd recovery from losses.
+ * This behavior is executed only when the window grows beyond a
+ * certain threshold, which allows TCP Highspeed to be friendly with standard
+ * TCP in environments with heavy congestion, without introducing new dangers
+ * of congestion collapse.
+ * At the core of TCP HighSpeed there are two functions, a(w) and b(w), which respectively
+ * specify the cWnd growth addendum and the cWnd reduction factor when
+ * given an actual cWnd value w.
+ *
+ * More information: http://dl.acm.org/citation.cfm?id=2756518
  */
 class TcpHighSpeed : public TcpNewReno
 {
@@ -74,7 +74,7 @@ protected:
 
 private:
   /**
-   * \brief Lookup table for a (from RFC 3649)
+   * \brief Lookup table for the coefficent a (from RFC 3649)
    *
    * \param w Window value (in packets)
    *
@@ -83,7 +83,7 @@ private:
   uint32_t  TableLookupA (uint32_t w);
 
   /**
-   * \brief Lookup table for b (from RFC 3649)
+   * \brief Lookup table for the coefficent b (from RFC 3649)
    *
    * \param w Window value (in packets)
    *

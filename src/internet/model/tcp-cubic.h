@@ -29,28 +29,21 @@ namespace ns3 {
 /**
  * \brief The Cubic Congestion Control Algorithm
  *
- * CUBIC is an implementation of TCP with an optimized congestion control
- * algorithm for high bandwidth networks with high latency (LFN: long fat
- * networks).
+ * TCP Cubic is a protocol that enhances the fairness property
+ * of Bic while retaining its scalability and stability. The main feature is
+ * that the window growth function is defined in real time in order to be independent
+ * from the RTT. More specifically, the congestion window of Cubic is determined
+ * by a function of the elapsed time from the last window reduction.
  *
- * It is a less aggressive and more systematic derivative of BIC TCP,
- * in which the window is a cubic function of time since the last
- * congestion event, with the inflection point set to the window prior to
- * the event. Being a cubic function, there are two components to window
- * growth. The first is a concave portion where the window quickly ramps
- * up to the window size before the last congestion event. Next is the convex
- * growth where CUBIC probes for more bandwidth, slowly at first then very
- * rapidly. CUBIC spends a lot of time at a plateau between the concave
- * and convex growth region which allows the network to stabilize before
- * CUBIC begins looking for more bandwidth.
+ * The Cubic code is quite similar to that of Bic.
+ * The main difference is located in the method Update, an edit
+ * necessary for satisfying the Cubic window growth, that can be tuned with
+ * the attribute C (the Cubic scaling factor).
  *
- * Another major difference between CUBIC and standard TCP flavors is
- * that it does not rely on the receipt of ACKs to increase the
- * window size. CUBIC's window size is dependent only on the last
- * congestion event. With standard TCP, flows with very short RTTs
- * will receive ACKs faster and therefore have their congestion windows
- * grow faster than other flows with longer RTTs. CUBIC allows for more
- * fairness between flows since the window growth is independent of RTT.
+ * Following the Linux implementation, we included the Hybrid Slow Start,
+ * that effectively prevents the overshooting of slow start
+ * while maintaining a full utilization of the network. This new type of slow
+ * start can be disabled through the \Attribute{HyStart} attribute.
  *
  * CUBIC TCP is implemented and used by default in Linux kernels 2.6.19
  * and above; this version follows the implementation in Linux 3.14, which
@@ -71,6 +64,8 @@ namespace ns3 {
  *  "Taming the Elephants: New TCP Slow Start", NCSU TechReport 2008.
  * Available from:
  *  http://netsrv.csc.ncsu.edu/export/hystart_techreport_2008.pdf
+ *
+ * More information on this implementation: http://dl.acm.org/citation.cfm?id=2756518
  */
 class TcpCubic : public TcpSocketBase
 {
@@ -80,6 +75,15 @@ public:
    * \return the object TypeId
    */
   static TypeId GetTypeId (void);
+
+  /**
+   * \brief State of the congestion control machine: open or loss
+   */
+  enum CubicState
+  {
+    OPEN     = 0x1, //!< Open state
+    LOSS     = 0x2, //!< Loss state
+  };
 
   TcpCubic ();
 
@@ -100,10 +104,13 @@ protected:
   virtual uint32_t GetInitialSSThresh (void) const;
   virtual void     SetInitialCwnd (uint32_t cwnd);
   virtual uint32_t GetInitialCwnd (void) const;
-  virtual void ScaleSsThresh (uint8_t scaleFactor);
-
+  virtual void     ScaleSsThresh (uint8_t scaleFactor);
 
 protected:
+  TracedValue<uint32_t>     m_cWnd;      //!< Congestion window
+  TracedValue<uint32_t>     m_ssThresh;  //!< Slow start threshold
+
+private:
   /**
    * \brief Values to detect the Slow Start mode of HyStart
    */
@@ -111,15 +118,6 @@ protected:
   {
     PACKET_TRAIN = 0x1, //!< Detection by trains of packet
     DELAY        = 0x2  //!< Detection by delay value
-  };
-
-  /**
-   * \brief State of the congestion control machine: open or loss
-   */
-  enum CubicState
-  {
-    OPEN     = 0x1, //!< Open state
-    LOSS     = 0x2, //!< Loss state
   };
 
   bool     m_fastConvergence;  //!< Enable or disable fast convergence algorithm
@@ -131,7 +129,7 @@ protected:
   Time     m_hystartAckDelta;  //!< Spacing between ack's indicating train
   Time     m_hystartDelayMin;  //!< Minimum time for hystart algorithm
   Time     m_hystartDelayMax;  //!< Maximum time for hystart algorithm
-  uint8_t  m_hystartMinSamples;//!< Number of delay samples for detecting the increase of delay
+  uint8_t  m_hystartMinSamples; //!< Number of delay samples for detecting the increase of delay
 
   uint32_t m_initialCwnd;      //!< Initial cWnd
   uint8_t  m_cntClamp;         //!< Modulo of the (avoided) float division for cWnd
@@ -139,7 +137,6 @@ protected:
   double   m_c;                //!< Cubic Scaling factor
 
   // Cubic parameters
-  CubicState   m_cubicState;      //!<  Cubic state \see CubicState
   uint32_t     m_cWndCnt;         //!<  cWnd integer-to-float counter
   uint32_t     m_lastMaxCwnd;     //!<  Last maximum cWnd
   uint32_t     m_bicOriginPoint;  //!<  Origin point of bic function
@@ -152,10 +149,9 @@ protected:
   Time         m_lastAck;         //!<  Last time when the ACK spacing is close
   Time         m_cubicDelta;      //!<  Time to wait after recovery before update
   Time         m_currRtt;         //!<  Current Rtt
-  uint32_t     m_sampleCnt;
+  uint32_t     m_sampleCnt;       //!<  Count of samples for HyStart
 
-  TracedValue<uint32_t>     m_cWnd;     //!< Congestion window
-  TracedValue<uint32_t>     m_ssThresh; //!< Slow start threshold
+  TracedValue<uint8_t>      m_cubicState;//!< Cubic state \see CubicState
 
 private:
   /**
@@ -178,7 +174,7 @@ private:
    *
    * \param delay Delay for HyStart algorithm
    */
-  void HystartUpdate (const Time& delay);
+  void HystartUpdate (const Time &delay);
 
   /**
    * \brief Clamp time value in a range
@@ -190,7 +186,7 @@ private:
    * \return t itself if it is in range, otherwise the min or max
    * value
    */
-  Time HystartDelayThresh (Time t) const;
+  Time HystartDelayThresh (const Time &t) const;
 
   /**
    * \brief Timing calculation about acks

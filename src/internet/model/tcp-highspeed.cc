@@ -37,6 +37,7 @@ TcpHighSpeed::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::TcpHighSpeed")
     .SetParent<TcpNewReno> ()
     .AddConstructor<TcpHighSpeed> ()
+    .SetGroupName ("Internet")
   ;
   return tid;
 }
@@ -66,7 +67,7 @@ void
 TcpHighSpeed::NewAck (const SequenceNumber32& seq)
 {
   NS_LOG_FUNCTION (this << seq);
-  NS_LOG_LOGIC ("TcpHighSpeed receieved ACK for seq " << seq <<
+  NS_LOG_LOGIC ("TcpHighSpeed received ACK for seq " << seq <<
                 " cwnd " << m_cWnd <<
                 " ssthresh " << m_ssThresh);
 
@@ -109,6 +110,7 @@ TcpHighSpeed::NewAck (const SequenceNumber32& seq)
 uint32_t
 TcpHighSpeed::TableLookupA (uint32_t w)
 {
+  NS_LOG_FUNCTION (this << w);
   if (w <= 38)
     {
       return 1;
@@ -407,9 +409,10 @@ TcpHighSpeed::TableLookupA (uint32_t w)
     }
 }
 
-double TcpHighSpeed::TableLookupB(uint32_t w)
+double TcpHighSpeed::TableLookupB (uint32_t w)
 {
-  w = static_cast<uint32_t> (w);
+  NS_LOG_FUNCTION (this << w);
+
   if (w <= 38)
     {
       return 0.50;
@@ -718,11 +721,11 @@ TcpHighSpeed::Loss ()
   double coeffB = 1.0 - TableLookupB (segCwnd);
   segCwnd = coeffB * segCwnd;
 
-  m_ssThresh = std::max (2 * m_segmentSize, m_cWnd.Get () - (segCwnd*m_segmentSize));
+  m_ssThresh = std::max (2 * m_segmentSize, m_cWnd.Get () - (segCwnd * m_segmentSize));
   m_cWnd = segCwnd * m_segmentSize;
 
-  NS_LOG_DEBUG ("HIGHSPEED LOSS. BEFORE cwnd=" << (oldCwnd/m_segmentSize) << " now=" << m_cWnd/m_segmentSize
-                << " with coeffB=" << coeffB);
+  NS_LOG_DEBUG ("HIGHSPEED LOSS. BEFORE cwnd=" << (oldCwnd / m_segmentSize) << " now=" << m_cWnd / m_segmentSize
+                                               << " with coeffB=" << coeffB);
 }
 
 /* Cut cwnd and enter fast recovery mode upon triple dupack */
@@ -762,9 +765,15 @@ TcpHighSpeed::Retransmit (void)
   m_inFastRec = false;
 
   // If erroneous timeout in closed/timed-wait state, just return
-  if (m_state == CLOSED || m_state == TIME_WAIT) return;
+  if (m_state == CLOSED || m_state == TIME_WAIT)
+    {
+      return;
+    }
   // If all data are received (non-closing socket and nothing to send), just return
-  if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark) return;
+  if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark)
+    {
+      return;
+    }
 
   Loss ();
 

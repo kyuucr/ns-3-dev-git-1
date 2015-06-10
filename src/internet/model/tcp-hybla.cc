@@ -33,6 +33,7 @@ TcpHybla::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::TcpHybla")
     .SetParent<TcpNewReno> ()
     .AddConstructor<TcpHybla> ()
+    .SetGroupName ("Internet")
     .AddAttribute ("RRTT", "Reference RTT",
                    TimeValue (MilliSeconds (50)),
                    MakeTimeAccessor (&TcpHybla::m_rRtt),
@@ -60,10 +61,10 @@ TcpHybla::InitializeCwnd ()
   RecalcParam ();
 
   /* set minimum rtt as this is the 1st ever seen */
-  m_minRtt = m_rtt->GetEstimate();
+  m_minRtt = m_rtt->GetEstimate ();
 
   m_initialCWnd *= m_rho;
-  m_initialSsThresh *= (m_rho*m_segmentSize);
+  m_initialSsThresh *= (m_rho * m_segmentSize);
 
   TcpNewReno::InitializeCwnd ();
 }
@@ -84,10 +85,10 @@ TcpHybla::RecalcParam ()
     }
 
   /* Bring back the ssThresh to the original value, without m_rho multiplied */
-  m_ssThresh /= (oldRho*m_segmentSize);
+  m_ssThresh /= (oldRho * m_segmentSize);
 
   /* Now update ssThresh */
-  m_ssThresh *= (m_rho*m_segmentSize);
+  m_ssThresh *= (m_rho * m_segmentSize);
 
   NS_LOG_DEBUG ("Calculated rho=" << m_rho);
 }
@@ -137,14 +138,14 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
 
   NS_ASSERT (increment >= 0.0);
 
-  uint32_t byte = increment*m_segmentSize;
+  uint32_t byte = increment * m_segmentSize;
 
   /* clamp down slowstart cwnd to ssthresh value. */
   if (isSlowstart)
     {
       m_cWnd = std::min (m_cWnd.Get () + byte, m_ssThresh.Get ());
-      NS_LOG_DEBUG ("Slow start: new cwnd=" << m_cWnd/m_segmentSize << "ssth= " <<
-                    m_ssThresh/m_segmentSize);
+      NS_LOG_DEBUG ("Slow start: new cwnd=" << m_cWnd / m_segmentSize << "ssth= " <<
+                    m_ssThresh / m_segmentSize);
     }
   else
     {
@@ -156,8 +157,8 @@ TcpHybla::NewAck (const SequenceNumber32 &seq)
           m_cWndCnt -= 1;
         }
 
-      NS_LOG_DEBUG ("Cong avoid: new cwnd=" << m_cWnd/m_segmentSize <<
-                    "ssth= " << m_ssThresh/m_segmentSize);
+      NS_LOG_DEBUG ("Cong avoid: new cwnd=" << m_cWnd / m_segmentSize <<
+                    "ssth= " << m_ssThresh / m_segmentSize);
     }
 
   TcpSocketBase::NewAck (seq);
@@ -189,7 +190,7 @@ TcpHybla::DupAck (const TcpHeader& t, uint32_t count)
       NS_LOG_INFO ("Limited transmit");
       uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, true);
       m_nextTxSequence += sz;                    // Advance next tx sequence
-    };
+    }
 }
 
 Ptr<TcpSocketBase>

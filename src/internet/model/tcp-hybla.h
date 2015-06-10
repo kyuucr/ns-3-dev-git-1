@@ -24,13 +24,20 @@
 namespace ns3 {
 
 /**
- * \brief Implementation of the Tcp Hybla algorithm
+ * \brief Implementation of the TCP Hybla algorithm
  *
- * TCP Hybla aims to eliminate penalization of TCP connections that
- * incorporate a high-latency terrestrial or satellite radio link, due
- * to their longer round trip times. It stems from an analytical evaluation
- * of the congestion window dynamics, which suggests the necessary
- * modifications to remove the performance dependence on RTT.
+ * The key idea behind TCP Hybla is to obtain for long RTT connections the same
+ * instantaneous transmission rate of a reference TCP connection with lower RTT.
+ * With analytical steps, it is shown that this goal can be achieved by
+ * modifying the time scale, in order for the throughput to be independent from
+ * the RTT. This independence is
+ * obtained through the use of a coefficient rho.
+ *
+ * This coefficient is used to calculate both the slow start threshold
+ * and the congestion window when in slow start and
+ * in congestion avoidance, respectively.
+ *
+ * More information: http://dl.acm.org/citation.cfm?id=2756518
  */
 class TcpHybla : public TcpNewReno
 {
@@ -49,7 +56,7 @@ protected:
   void DupAck (const TcpHeader& t, uint32_t count);
   virtual void InitializeCwnd (void);
 
-protected:
+private:
   double     m_rho;         //!< Rho parameter
   Time       m_minRtt;      //!< Minimum smoothed round trip time value seen
   Time       m_rRtt;        //!< Reference RTT

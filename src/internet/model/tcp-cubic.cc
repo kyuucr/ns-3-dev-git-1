@@ -35,11 +35,12 @@ TcpCubic::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::TcpCubic")
     .SetParent<TcpSocketBase> ()
     .AddConstructor<TcpCubic> ()
+    .SetGroupName ("Internet")
     .AddAttribute ("FastConvergence", "Enable (true) or disable (false) fast convergence",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpCubic::m_fastConvergence),
                    MakeBooleanChecker ())
-    .AddAttribute ("Beta", "Beta for multiplicative increase",
+    .AddAttribute ("Beta", "Beta for multiplicative decrease",
                    DoubleValue (0.8),
                    MakeDoubleAccessor (&TcpCubic::m_beta),
                    MakeDoubleChecker <double> (0.0))
@@ -55,7 +56,7 @@ TcpCubic::GetTypeId (void)
                    "1: packet train, 2: delay, 3: both",
                    IntegerValue (3),
                    MakeIntegerAccessor (&TcpCubic::m_hystartDetect),
-                   MakeIntegerChecker <int> ())
+                   MakeIntegerChecker <int> (1,3))
     .AddAttribute ("HyStartMinSamples", "Number of delay samples for detecting the increase of delay",
                    UintegerValue (8),
                    MakeUintegerAccessor (&TcpCubic::m_hystartMinSamples),
@@ -95,6 +96,10 @@ TcpCubic::GetTypeId (void)
                      "TCP slow start threshold (bytes)",
                      MakeTraceSourceAccessor (&TcpCubic::m_ssThresh),
                      "ns3::TracedValue::Uint32Callback")
+    .AddTraceSource ("CubicState",
+                     "State of TCP Cubic",
+                     MakeTraceSourceAccessor (&TcpCubic::m_cubicState),
+                     "ns3::TracedValue::Uint8Callback")
   ;
   return tid;
 }
@@ -248,12 +253,12 @@ TcpCubic::WindowUpdate ()
   if (t.GetSeconds () < m_bicK)       /* t - K */
     {
       offs = m_bicK - t.GetSeconds ();
-      NS_LOG_DEBUG ("t=" << t.GetSeconds() << " <k: offs=" << offs);
+      NS_LOG_DEBUG ("t=" << t.GetSeconds () << " <k: offs=" << offs);
     }
   else
     {
       offs = t.GetSeconds () - m_bicK;
-      NS_LOG_DEBUG ("t=" << t.GetSeconds() << " >= k: offs=" << offs);
+      NS_LOG_DEBUG ("t=" << t.GetSeconds () << " >= k: offs=" << offs);
     }
 
 
@@ -281,7 +286,7 @@ TcpCubic::WindowUpdate ()
   if (bicTarget > segCwnd)
     {
       cnt = segCwnd / (bicTarget - segCwnd);
-      NS_LOG_DEBUG ("target>cwnd. cnt="  << cnt);
+      NS_LOG_DEBUG ("target>cwnd. cnt=" << cnt);
     }
   else
     {
@@ -298,7 +303,7 @@ TcpCubic::WindowUpdate ()
       cnt = 1;
     }
 
-  NS_LOG_DEBUG ("After all, cnt="  << cnt);
+  NS_LOG_DEBUG ("After all, cnt=" << cnt);
 
   return cnt;
 }
@@ -330,11 +335,11 @@ TcpCubic::CongAvoid (const SequenceNumber32& seq)
         {
           m_cWnd += m_segmentSize;
           m_cWndCnt = 0;
-          NS_LOG_DEBUG("Increment cwnd to " << m_cWnd);
+          NS_LOG_DEBUG ("Increment cwnd to " << m_cWnd);
         }
       else
         {
-          NS_LOG_DEBUG("Not enough segments have been ACKed to increment cwnd. Until now " << m_cWndCnt);
+          NS_LOG_DEBUG ("Not enough segments have been ACKed to increment cwnd. Until now " << m_cWndCnt);
         }
     }
 }
@@ -366,9 +371,9 @@ TcpCubic::PktsAcked ()
     }
 
   /* hystart triggers when cwnd is larger than some threshold */
-  if (m_hystart                   &&
-      m_cWnd.Get () <= m_ssThresh &&
-      m_cWnd.Get () >= m_hystartLowWindow * m_segmentSize)
+  if (m_hystart
+      && m_cWnd.Get () <= m_ssThresh
+      && m_cWnd.Get () >= m_hystartLowWindow * m_segmentSize)
     {
       HystartUpdate (delay);
     }
@@ -377,7 +382,7 @@ TcpCubic::PktsAcked ()
 void
 TcpCubic::HystartUpdate (const Time& delay)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << delay);
 
   if (!(m_found & m_hystartDetect))
     {
@@ -425,9 +430,9 @@ TcpCubic::HystartUpdate (const Time& delay)
 }
 
 Time
-TcpCubic::HystartDelayThresh (Time t) const
+TcpCubic::HystartDelayThresh (const Time& t) const
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << t);
 
   Time ret = t;
   if (t > m_hystartDelayMax)
@@ -475,13 +480,13 @@ TcpCubic::RecalcSsthresh ()
                          2U * m_segmentSize);
   m_cWnd = m_ssThresh;
 
-  NS_LOG_DEBUG ("Imposing cwnd and ssth=" << m_cWnd/m_segmentSize);
+  NS_LOG_DEBUG ("Imposing cwnd and ssth=" << m_cWnd / m_segmentSize);
 }
 
 void
 TcpCubic::DupAck (const TcpHeader& t, uint32_t count)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << t << count);
   (void) t;
 
   /* Keep the timing information */
@@ -496,7 +501,7 @@ TcpCubic::DupAck (const TcpHeader& t, uint32_t count)
     }
   else if (count > 3)
     {
-      CongAvoid(SequenceNumber32 (0));
+      CongAvoid (SequenceNumber32 (0));
       SendPendingData (m_connected);
     }
 }
@@ -532,6 +537,8 @@ TcpCubic::Window (void)
 void
 TcpCubic::ScaleSsThresh (uint8_t scaleFactor)
 {
+  NS_LOG_FUNCTION (this << scaleFactor);
+
   m_ssThresh <<= scaleFactor;
 }
 
