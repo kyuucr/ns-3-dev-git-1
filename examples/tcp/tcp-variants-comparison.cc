@@ -247,19 +247,19 @@ int main (int argc, char *argv[])
       Config::SetDefault ("ns3::TcpWestwood::FilterType", EnumValue (TcpWestwood::TUSTIN));
     }
   else if (transport_prot.compare ("TcpBic") == 0)
-    { // the default protocol type in ns3::TcpWestwood is Bic
+    {
       Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId ()));
     }
   else if (transport_prot.compare ("TcpCubic") == 0)
-    { // the default protocol type in ns3::TcpWestwood is Cubic
+    {
       Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpCubic::GetTypeId ()));
     }
   else if (transport_prot.compare ("TcpHybla") == 0)
-    { // the default protocol type in ns3::TcpWestwood is Hybla
+    {
       Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpHybla::GetTypeId ()));
     }
   else if (transport_prot.compare ("TcpHighSpeed") == 0)
-    { // the default protocol type in ns3::TcpWestwood is HighSpeed
+    {
       Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpHighSpeed::GetTypeId ()));
     }
   else
