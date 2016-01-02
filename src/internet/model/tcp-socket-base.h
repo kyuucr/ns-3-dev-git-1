@@ -317,6 +317,12 @@ public:
   Ptr<TcpRxBuffer> GetRxBuffer (void) const;
 
   /**
+   * \brief Get the first unacked sequence
+   * \return sequence number indicating the first unacked seq
+   */
+  virtual SequenceNumber32 GetFirstUnackedSeq () const;
+
+  /**
    * \brief Callback pointer for cWnd trace chaining
    */
   TracedCallback<uint32_t, uint32_t> m_cWndTrace;
@@ -325,6 +331,16 @@ public:
    * \brief Callback pointer for ssTh trace chaining
    */
   TracedCallback<uint32_t, uint32_t> m_ssThTrace;
+
+  /**
+   * \brief Callback pointer for SND.UNA trace chaining
+   */
+  TracedCallback<SequenceNumber32, SequenceNumber32> m_sndUNATrace;
+
+  /**
+   * \brief Callback pointer for RCV.NXT trace chaining
+   */
+  TracedCallback<SequenceNumber32, SequenceNumber32> m_rcvNXTTrace;
 
   /**
    * \brief Callback pointer for congestion state trace chaining
@@ -352,6 +368,20 @@ public:
    */
   void UpdateCongState (TcpSocketState::TcpCongState_t oldValue,
                        TcpSocketState::TcpCongState_t newValue);
+
+  /**
+   * \brief Callback function to hook to TcpTxBuffer SND.UNA
+   * \param oldValue old congestion state value
+   * \param newValue new congestion state value
+   */
+  void UpdateSNDUNA (SequenceNumber32 oldValue, SequenceNumber32 newValue);
+
+  /**
+   * \brief Callback function to hook to TcpRxBuffer RCV.NXT
+   * \param oldValue old congestion state value
+   * \param newValue new congestion state value
+   */
+  void UpdateRCVNXT (SequenceNumber32 oldValue, SequenceNumber32 newValue);
 
   /**
    * \brief Install a congestion control algorithm on this socket
@@ -904,6 +934,12 @@ protected:
    * m_segmentSize are set by the attribute system in ns3::TcpSocket.
    */
   virtual void InitializeCwnd ();
+
+  /**
+   * \brief Discard data in transmission buffer up to seq
+   * \param seq sequence number correctly acknowledged
+   */
+  void UpdateTxBuffer (SequenceNumber32 seq);
 
 protected:
   // Counters and events
