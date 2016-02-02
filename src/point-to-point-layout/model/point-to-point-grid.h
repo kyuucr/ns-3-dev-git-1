@@ -141,6 +141,27 @@ public:
    */
   void BoundingBox (double ulx, double uly, double lrx, double lry);
 
+  /**
+   * This function returns a NodeContainer element returning the nodes 
+   * in a row element instead of a vector element
+   *  \return a node container with all the nodes
+   */
+  NodeContainer GetNodeContainer ();
+
+  /**
+   * This function returns a NetDeviceContainer element containing
+   * the row net devices in a row element instead of a vector element
+   *  \return a NetDeviceContainer with all the horizontal devices
+   */
+  NetDeviceContainer GetRowDevices ();
+
+  /**
+   * This function returns a NetDeviceContainer element containing
+   * the col net devices in a row element instead of a vector element
+   * *  \return a NetDeviceContainer with all the vertical devices
+   */
+  NetDeviceContainer GetColDevices ();
+
 private:
   uint32_t m_xSize;   //!< X size of the grid (number of columns)
   uint32_t m_ySize;   //!< Y size of the grid (number of rows)

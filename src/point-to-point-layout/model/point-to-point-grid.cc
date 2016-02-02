@@ -105,7 +105,7 @@ PointToPointGridHelper::AssignIpv4Addresses (Ipv4AddressHelper rowIp, Ipv4Addres
       NetDeviceContainer rowContainer = m_rowDevices[i];
       for (uint32_t j = 0; j < rowContainer.GetN (); j+=2)
         {
-          rowInterfaces.Add (rowIp.Assign (rowContainer.Get (j))); 
+          rowInterfaces.Add (rowIp.Assign (rowContainer.Get (j)));
           rowInterfaces.Add (rowIp.Assign (rowContainer.Get (j+1)));
           rowIp.NewNetwork ();
         }
@@ -131,9 +131,9 @@ PointToPointGridHelper::AssignIpv4Addresses (Ipv4AddressHelper rowIp, Ipv4Addres
 }
 
 void
-PointToPointGridHelper::AssignIpv6Addresses(Ipv6Address addrBase, Ipv6Prefix prefix)
+PointToPointGridHelper::AssignIpv6Addresses (Ipv6Address addrBase, Ipv6Prefix prefix)
 {
-  Ipv6AddressGenerator::Init(addrBase, prefix);
+  Ipv6AddressGenerator::Init (addrBase, prefix);
   Ipv6Address v6network;
   Ipv6AddressHelper addrHelper;
 
@@ -148,7 +148,7 @@ PointToPointGridHelper::AssignIpv6Addresses(Ipv6Address addrBase, Ipv6Prefix pre
       for (uint32_t j = 0; j < rowContainer.GetN (); j+=2)
         {
           v6network = Ipv6AddressGenerator::GetNetwork (prefix);
-          addrHelper.SetBase(v6network, prefix);
+          addrHelper.SetBase (v6network, prefix);
           Ipv6InterfaceContainer ic = addrHelper.Assign (rowContainer.Get (j));
           rowInterfaces.Add (ic);
           ic = addrHelper.Assign (rowContainer.Get (j+1));
@@ -169,7 +169,7 @@ PointToPointGridHelper::AssignIpv6Addresses(Ipv6Address addrBase, Ipv6Prefix pre
       for (uint32_t j = 0; j < colContainer.GetN (); j+=2)
         {
           v6network = Ipv6AddressGenerator::GetNetwork (prefix);
-          addrHelper.SetBase(v6network, prefix);
+          addrHelper.SetBase (v6network, prefix);
           Ipv6InterfaceContainer ic = addrHelper.Assign (colContainer.Get (j));
           colInterfaces.Add (ic);
           ic = addrHelper.Assign (colContainer.Get (j+1));
@@ -204,10 +204,12 @@ PointToPointGridHelper::BoundingBox (double ulx, double uly,
     }
   double xAdder = xDist / m_xSize;
   double yAdder = yDist / m_ySize;
-  double yLoc = yDist / 2;
+  //double yLoc = yDist / 2;
+  double yLoc = lry;
   for (uint32_t i = 0; i < m_ySize; ++i)
     {
-      double xLoc = xDist / 2;
+      //double xLoc = xDist / 2;
+      double xLoc = lrx;
       for (uint32_t j = 0; j < m_xSize; ++j)
         {
           Ptr<Node> node = GetNode (i, j);
@@ -241,18 +243,18 @@ PointToPointGridHelper::GetNode (uint32_t row, uint32_t col)
 Ipv4Address
 PointToPointGridHelper::GetIpv4Address (uint32_t row, uint32_t col)
 {
-  if (row > m_nodes.size () - 1 || 
-      col > m_nodes.at (row).GetN () - 1) 
+  if (row > m_nodes.size () - 1 ||
+      col > m_nodes.at (row).GetN () - 1)
     {
       NS_FATAL_ERROR ("Index out of bounds in PointToPointGridHelper::GetIpv4Address.");
     }
 
   // Right now this just gets one of the addresses of the
   // specified node.  The exact device can't be specified.
-  // If you picture the grid, the address returned is the 
-  // address of the left (row) device of all nodes, with 
-  // the exception of the left-most nodes in the grid; 
-  // in which case the right (row) device address is 
+  // If you picture the grid, the address returned is the
+  // address of the left (row) device of all nodes, with
+  // the exception of the left-most nodes in the grid;
+  // in which case the right (row) device address is
   // returned
   if (col == 0)
     {
@@ -289,5 +291,44 @@ PointToPointGridHelper::GetIpv6Address (uint32_t row, uint32_t col)
       return (m_rowInterfaces6.at (row)).GetAddress ((2*col)-1, 1);
     }
 }
+
+NodeContainer
+PointToPointGridHelper::GetNodeContainer ()
+{
+  NodeContainer GridNodes;
+  for (uint32_t i=0; i<m_nodes.size (); i++)
+    {
+      /*std::cout<<"Row: "<<i<<std::endl;
+      for (uint32_t j=0; j<m_nodes[i].GetN();j++)
+        {
+          std::cout<<"El nodo en la col: "<<j<<"with Id: "<<m_nodes[i].Get(j)->GetId()<<std::endl;
+        }*/
+      GridNodes.Add (m_nodes[i]);
+    }
+  return GridNodes;
+}
+
+NetDeviceContainer
+PointToPointGridHelper::GetRowDevices ()
+{
+  NetDeviceContainer RowDevices;
+  for (uint32_t i=0; i<m_rowDevices.size (); i++)
+    {
+      RowDevices.Add (m_rowDevices[i]);
+    }
+  return RowDevices;
+}
+
+NetDeviceContainer
+PointToPointGridHelper::GetColDevices ()
+{
+  NetDeviceContainer ColDevices;
+  for (uint32_t i=0; i<m_colDevices.size (); i++)
+    {
+      ColDevices.Add (m_colDevices[i]);
+    }
+  return ColDevices;
+}
+
 
 } // namespace ns3
