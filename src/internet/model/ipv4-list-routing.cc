@@ -176,6 +176,7 @@ Ipv4ListRouting::RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<
        rprotoIter != m_routingProtocols.end ();
        rprotoIter++)
     {
+      (*rprotoIter).second->SetMac (m_Mac); //add Mac address for BP
       if ((*rprotoIter).second->RouteInput (p, header, idev, ucb, mcb, downstreamLcb, ecb))
         {
           NS_LOG_LOGIC ("Route found to forward packet in protocol " << (*rprotoIter).second->GetInstanceTypeId ().GetName ()); 
