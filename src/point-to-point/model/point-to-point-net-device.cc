@@ -158,7 +158,7 @@ PointToPointNetDevice::GetTypeId (void)
     // non-promiscuous traces in a point-to-point link.
     //
     .AddTraceSource ("Sniffer", 
-                    "Trace source simulating a non-promiscuous packet sniffer "
+                     "Trace source simulating a non-promiscuous packet sniffer "
                      "attached to the device",
                      MakeTraceSourceAccessor (&PointToPointNetDevice::m_snifferTrace),
                      "ns3::Packet::TracedCallback")
@@ -174,10 +174,10 @@ PointToPointNetDevice::GetTypeId (void)
 
 PointToPointNetDevice::PointToPointNetDevice () 
   :
-    m_txMachineState (READY),
-    m_channel (0),
-    m_linkUp (false),
-    m_currentPkt (0)
+  m_txMachineState (READY),
+  m_channel (0),
+  m_linkUp (false),
+  m_currentPkt (0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -647,7 +647,7 @@ PointToPointNetDevice::GetMtu (void) const
 uint16_t
 PointToPointNetDevice::PppToEther (uint16_t proto)
 {
-  NS_LOG_FUNCTION_NOARGS();
+  NS_LOG_FUNCTION_NOARGS ();
   switch(proto)
     {
     case 0x0021: return 0x0800;   //IPv4
@@ -660,7 +660,7 @@ PointToPointNetDevice::PppToEther (uint16_t proto)
 uint16_t
 PointToPointNetDevice::EtherToPpp (uint16_t proto)
 {
-  NS_LOG_FUNCTION_NOARGS();
+  NS_LOG_FUNCTION_NOARGS ();
   switch(proto)
     {
     case 0x0800: return 0x0021;   //IPv4
@@ -670,5 +670,15 @@ PointToPointNetDevice::EtherToPpp (uint16_t proto)
   return 0;
 }
 
+uint64_t
+PointToPointNetDevice::GetRatebps (void) const
+{
+  return m_bps.GetBitRate ();
+}
 
+bool
+PointToPointNetDevice::IsReadyTx (void) const
+{
+  return m_txMachineState == READY;
+}
 } // namespace ns3

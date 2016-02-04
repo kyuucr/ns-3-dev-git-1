@@ -110,6 +110,11 @@ public:
   virtual void SetPromiscReceiveCallback (PromiscReceiveCallback cb);
   virtual bool SupportsSendFrom (void) const;
 
+  /**
+   * \brief Get the data rate of the device
+   * \return the data rate of the device in bps
+   */
+  uint64_t GetRatebps (void) const;
 
 protected:
   virtual void DoDispose (void);

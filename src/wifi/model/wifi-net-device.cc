@@ -399,4 +399,11 @@ WifiNetDevice::SupportsSendFrom (void) const
   return m_mac->SupportsSendFrom ();
 }
 
+uint64_t
+WifiNetDevice::GetRatebps (void) const
+{
+  WifiMode wifimode = m_stationManager->GetNonUnicastMode();
+  return wifimode.GetDataRate (m_phy->GetChannelWidth (), m_phy->GetGuardInterval (), 1);
+}
+
 } //namespace ns3
