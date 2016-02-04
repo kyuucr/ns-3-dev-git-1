@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -49,8 +48,6 @@ namespace ns3 {
 #define MAX_PKTS_PER_TRACE_FILE 100000
 #define PURGE_INTERVAL 5
 #define NETANIM_VERSION "netanim-3.106"
-#define CHECK_STARTED_INTIMEWINDOW {if (!m_started || !IsInTimeWindow ()) return;}
-#define CHECK_STARTED_INTIMEWINDOW_TRACKPACKETS {if (!m_started || !IsInTimeWindow () || !m_trackPackets) return;}
 
 
 struct NodeSize;
@@ -81,13 +78,22 @@ public:
   AnimationInterface (const std::string filename);
 
   /**
+   * \brief custom Constructor for sansa-lena project
+   * \param filename The Filename for the trace file used by the Animator
+   * \param eNodeBs The number of enodeBs in the simulation to differentiate from the UEs
+   * \param SatGw The number of enodeB's connected to the satellite
+   */
+  AnimationInterface (const std::string filename, int eNodeBs, int SatGw);
+
+
+  /**
    * Counter Types 
    */
   typedef enum
-    {
-      UINT32_COUNTER,
-      DOUBLE_COUNTER
-    } CounterType;
+  {
+    UINT32_COUNTER,
+    DOUBLE_COUNTER
+  } CounterType;
 
   /**
    * \brief typedef for WriteCallBack used for listening to AnimationInterface
@@ -202,9 +208,9 @@ public:
   /**
    * \brief Set Max packets per trace file
    * \param maxPktsPerFile The maximum number of packets per trace file.
-	    AnimationInterface will create trace files with the following 
+            AnimationInterface will create trace files with the following
             filenames : filename, filename-1, filename-2..., filename-N
-	    where each file contains packet info for 'maxPktsPerFile' number of packets
+            where each file contains packet info for 'maxPktsPerFile' number of packets
    *
    * \returns none
    */
@@ -423,29 +429,52 @@ public:
 
 private:
 
-  class AnimPacketInfo
-  
+
+  // ##### typedef #####
+  class AnimRxInfo
   {
-  public:
-    AnimPacketInfo ();
-    AnimPacketInfo (const AnimPacketInfo & pInfo);
-    AnimPacketInfo(Ptr <const NetDevice> tx_nd, const Time fbTx, uint32_t txNodeId = 0);
-    Ptr <const NetDevice> m_txnd;
-    uint32_t m_txNodeId;
-    double m_fbTx;     
-    double m_lbTx;     
-    double m_fbRx;            
+public:
+    AnimRxInfo () {}
+    AnimRxInfo (const Time& fbRx, Ptr <const NetDevice> nd,double rxRange)
+      : m_fbRx (fbRx.GetSeconds ()), m_lbRx (0), m_rxnd (nd), rxRange (rxRange), m_PhyRxComplete (false) {}
+    double m_fbRx;
     double m_lbRx;
     Ptr <const NetDevice> m_rxnd;
-    void ProcessRxBegin (Ptr <const NetDevice> nd, const double fbRx);
+    double rxRange;
+    bool IsPhyRxComplete ();
+    void SetPhyRxComplete ();
+private:
+    bool m_PhyRxComplete;
+  };
+
+  class AnimPacketInfo
+
+  {
+public:
+    AnimPacketInfo ();
+    AnimPacketInfo (const AnimPacketInfo & pInfo);
+    AnimPacketInfo(Ptr <const NetDevice> tx_nd, const Time fbTx, const Time lbTx, Vector txLoc, uint32_t txNodeId = 0);
+    Ptr <const NetDevice> m_txnd;
+    uint32_t m_txNodeId;
+    double m_fbTx;
+    double m_lbTx;
+    Vector m_txLoc;
+    double m_firstLastBitDelta;
+    std::map<uint32_t,AnimRxInfo> m_rx;
+    void ProcessRxBegin (Ptr <const NetDevice> nd, const Time fbRx);
+    bool ProcessRxEnd (Ptr <const NetDevice> nd, const Time fbRx, Vector rxLoc);
+    void ProcessRxDrop (Ptr <const NetDevice> nd);
+    AnimRxInfo GetRxInfo (Ptr <const NetDevice> nd);
+    void RemoveRxInfo (Ptr <const NetDevice> nd);
+
   };
 
   typedef struct
-    {
-      uint8_t r;
-      uint8_t g;
-      uint8_t b;
-    } Rgb;
+  {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+  } Rgb;
 
   typedef struct
   {
@@ -463,48 +492,48 @@ private:
   struct LinkPairCompare
   {
     bool operator () (P2pLinkNodeIdPair first, P2pLinkNodeIdPair second) const
-      {
-        //Check if they are the same node pairs but flipped
-        if (  ((first.fromNode == second.fromNode) && (first.toNode == second.toNode)) ||
-              ((first.fromNode == second.toNode) && (first.toNode == second.fromNode)) )
-          {
-            return false;
-          }
-        std::ostringstream oss1;
-        oss1 << first.fromNode << first.toNode;
-        std::ostringstream oss2;
-        oss2 << second.fromNode << second.toNode;
-        return oss1.str () < oss2.str ();
-      }
+    {
+      //Check if they are the same node pairs but flipped
+      if (  ((first.fromNode == second.fromNode) && (first.toNode == second.toNode)) ||
+            ((first.fromNode == second.toNode) && (first.toNode == second.fromNode)) )
+        {
+          return false;
+        }
+      std::ostringstream oss1;
+      oss1 << first.fromNode << first.toNode;
+      std::ostringstream oss2;
+      oss2 << second.fromNode << second.toNode;
+      return oss1.str () < oss2.str ();
+    }
 
   };
 
   typedef struct 
-    {
-      std::string destination;
-      uint32_t fromNodeId;
-    } Ipv4RouteTrackElement;
+  {
+    std::string destination;
+    uint32_t fromNodeId;
+  } Ipv4RouteTrackElement;
 
   typedef struct 
-    {
-      uint32_t nodeId;
-      std::string nextHop;
-    } Ipv4RoutePathElement;
+  {
+    uint32_t nodeId;
+    std::string nextHop;
+  } Ipv4RoutePathElement;
 
   typedef enum
-    {
-      UAN,
-      LTE,
-      WIFI,
-      WIMAX,
-      CSMA
-    } ProtocolType;
+  {
+    UAN,
+    LTE,
+    WIFI,
+    WIMAX,
+    CSMA
+  } ProtocolType;
 
   typedef struct
-    {
-      double width;
-      double height;
-    } NodeSize;
+  {
+    double width;
+    double height;
+  } NodeSize;
   typedef std::map <P2pLinkNodeIdPair, LinkProperties, LinkPairCompare> LinkPropertiesMap;
   typedef std::map <uint32_t, std::string> NodeDescriptionsMap;
   typedef std::map <uint32_t, Rgb> NodeColorsMap;
@@ -519,20 +548,18 @@ private:
 
   class AnimXmlElement
   {
-    public:
-    AnimXmlElement (std::string tagName, bool emptyElement=true);
+public:
+    AnimXmlElement (std::string tagName);
     template <typename T>
-    void AddAttribute (std::string attribute, T value, bool xmlEscape=false);
+    void AddAttribute (std::string attribute, T value);
     void Close ();
-    void CloseElement ();
     void CloseTag ();
     void AddLineBreak ();
     void Add (AnimXmlElement e);
     std::string GetElementString ();
-  private:
+private:
     std::string m_tagName;
     std::string m_elementString;
-    bool m_emptyElement;
 
   };
 
@@ -543,7 +570,7 @@ private:
   FILE * m_routingF; // File handle for routing table output (0 if None);
   Time m_mobilityPollInterval;
   std::string m_outputFileName;
-  uint64_t gAnimUid ;    // Packet unique identifier used by AnimationInterface
+  uint64_t gAnimUid;     // Packet unique identifier used by AnimationInterface
   AnimWriteCallback m_writeCallback;
   bool m_started;
   bool m_enablePacketMetadata; 
@@ -565,10 +592,12 @@ private:
   Time m_wifiPhyCountersPollInterval;
   static Rectangle * userBoundary;
   bool m_trackPackets;
+  int m_enodeBs;
+  int m_SatGws;
 
   // Counter ID
   uint32_t m_remainingEnergyCounterId;
-  
+
   uint32_t m_ipv4L3ProtocolTxCounterId;
   uint32_t m_ipv4L3ProtocolRxCounterId;
   uint32_t m_ipv4L3ProtocolDropCounterId;
@@ -584,13 +613,13 @@ private:
  
   uint32_t m_wifiPhyTxDropCounterId;
   uint32_t m_wifiPhyRxDropCounterId;
-  
+
   AnimUidPacketInfoMap m_pendingWifiPackets;
   AnimUidPacketInfoMap m_pendingWimaxPackets;
   AnimUidPacketInfoMap m_pendingLtePackets;
   AnimUidPacketInfoMap m_pendingCsmaPackets;
   AnimUidPacketInfoMap m_pendingUanPackets;
-  std::map <uint32_t, Vector> m_nodeLocation;
+  std::map<uint32_t, Vector> m_nodeLocation;
   std::map <std::string, uint32_t> m_macToNodeIdMap;
   std::map <std::string, uint32_t> m_ipv4ToNodeIdMap;
   NodeColorsMap m_nodeColors;
@@ -603,7 +632,6 @@ private:
   std::vector <std::string> m_resources;
   std::vector <std::string> m_nodeCounters;
 
-  /* Value-added custom counters */
   NodeCounterMap64 m_nodeIpv4Drop;
   NodeCounterMap64 m_nodeIpv4Tx;
   NodeCounterMap64 m_nodeIpv4Rx;
@@ -620,7 +648,7 @@ private:
   const std::vector<std::string> GetElementsFromContext (const std::string& context) const;
   Ptr <Node> GetNodeFromContext (const std::string& context) const;
   Ptr <NetDevice> GetNetDeviceFromContext (std::string context);
-  
+
   // ##### General #####
   void StartAnimation (bool restart = false);
   void SetOutputFile (const std::string& fn, bool routing = false);
@@ -634,10 +662,10 @@ private:
   std::string GetIpv4Address (Ptr <NetDevice> nd);
   std::string GetNetAnimVersion ();
   void MobilityAutoCheck ();
+  void LinkAutoCheck ();
   bool IsPacketPending (uint64_t animUid, ProtocolType protocolType);
   void PurgePendingPackets (ProtocolType protocolType);
   AnimUidPacketInfoMap * ProtocolTypeToPendingPackets (ProtocolType protocolType);
-  std::string ProtocolTypeToString (ProtocolType protocolType);
   void AddPendingPacket (ProtocolType protocolType, uint64_t animUid, AnimPacketInfo pktInfo);
   uint64_t GetAnimUidFromPacket (Ptr <const Packet>);
   void AddToIpv4AddressNodeIdTable (std::string, uint32_t);
@@ -662,9 +690,9 @@ private:
   void DequeueTrace (std::string context,
                      Ptr<const Packet>);
   void QueueDropTrace (std::string context,
-                     Ptr<const Packet>);
+                       Ptr<const Packet>);
   void Ipv4TxTrace (std::string context,
-                    Ptr<const Packet>, Ptr<Ipv4>,  
+                    Ptr<const Packet>, Ptr<Ipv4>,
                     uint32_t);
   void Ipv4RxTrace (std::string context,
                     Ptr<const Packet>, Ptr<Ipv4>,
@@ -684,9 +712,9 @@ private:
   void WifiMacRxDropTrace (std::string context,
                            Ptr<const Packet>);
   void WifiPhyTxDropTrace (std::string context,
-                       Ptr<const Packet>);
+                           Ptr<const Packet>);
   void WifiPhyRxDropTrace (std::string context,
-                       Ptr<const Packet>);
+                           Ptr<const Packet>);
   void DevTxTrace (std::string context,
                    Ptr<const Packet> p,
                    Ptr<NetDevice> tx,
@@ -699,37 +727,35 @@ private:
                             Ptr<const Packet> p);
   void WimaxTxTrace (std::string context,
                      Ptr<const Packet> p,
-		     const Mac48Address &);
+                     const Mac48Address &);
   void WimaxRxTrace (std::string context,
                      Ptr<const Packet> p,
                      const Mac48Address &);
   void CsmaPhyTxBeginTrace (std::string context,
                             Ptr<const Packet> p);
   void CsmaPhyTxEndTrace (std::string context,
-                            Ptr<const Packet> p);
+                          Ptr<const Packet> p);
   void CsmaPhyRxEndTrace (std::string context,
                           Ptr<const Packet> p);
   void CsmaMacRxTrace (std::string context,
                        Ptr<const Packet> p);
   void LteTxTrace (std::string context,
-                      Ptr<const Packet> p,
-                      const Mac48Address &);
+                   Ptr<const Packet> p,
+                   const Mac48Address &);
   void LteRxTrace (std::string context,
-                      Ptr<const Packet> p,
-                      const Mac48Address &);
+                   Ptr<const Packet> p,
+                   const Mac48Address &);
   void LteSpectrumPhyTxStart (std::string context,
-                      Ptr<const PacketBurst> pb);
+                              Ptr<const PacketBurst> pb);
   void LteSpectrumPhyRxStart (std::string context,
-                      Ptr<const PacketBurst> pb);
+                              Ptr<const PacketBurst> pb);
   void UanPhyGenTxTrace (std::string context,
                          Ptr<const Packet>);
   void UanPhyGenRxTrace (std::string context,
                          Ptr<const Packet>);
   void RemainingEnergyTrace (std::string context, double previousEnergy, double currentEnergy);
-  void GenericWirelessTxTrace (std::string context, Ptr<const Packet>, ProtocolType protocolType);
-  void GenericWirelessRxTrace (std::string context, Ptr<const Packet>, ProtocolType protocolType);
 
-  
+
   void ConnectCallbacks ();
   void ConnectLte ();
   void ConnectLteUe (Ptr <Node> n, Ptr <LteUeNetDevice> nd, uint32_t devIndex);
@@ -740,7 +766,6 @@ private:
   Vector GetPosition (Ptr <Node> n);
   Vector UpdatePosition (Ptr <Node> n);
   Vector UpdatePosition (Ptr <Node> n, Vector v);
-  Vector UpdatePosition (Ptr <NetDevice> ndev);
   bool NodeHasMoved (Ptr <Node> n, Vector newLocation);
   std::vector < Ptr <Node> > GetMovedNodes ();
   void MobilityCourseChangeTrace (Ptr <const MobilityModel> mob);
@@ -751,8 +776,8 @@ private:
   void WriteNonP2pLinkProperties (uint32_t id, std::string ipv4Address, std::string channelType);
   void WriteNodeUpdate (uint32_t nodeId);
   void OutputWirelessPacketTxInfo (Ptr<const Packet> p, AnimPacketInfo& pktInfo, uint64_t animUid);
-  void OutputWirelessPacketRxInfo (Ptr<const Packet> p, AnimPacketInfo& pktInfo, uint64_t animUid);
-  void OutputCsmaPacket (Ptr<const Packet> p, AnimPacketInfo& pktInfo);
+  void OutputWirelessPacketRxInfo (Ptr<const Packet> p, AnimRxInfo pktrxInfo, uint64_t animUid);
+  void OutputCsmaPacket (Ptr<const Packet> p, AnimPacketInfo& pktInfo, AnimRxInfo pktrxInfo);
   void WriteLinkProperties ();
   void WriteNodes ();
   void WriteNodeColors ();
@@ -771,15 +796,15 @@ private:
   void WriteXmlLink (uint32_t fromId, uint32_t toLp, uint32_t toId);
   void WriteXmlUpdateLink (uint32_t fromId, uint32_t toId, std::string);
   void WriteXmlP (std::string pktType, 
-                                 uint32_t fId, 
-                                 double fbTx, 
-                                 double lbTx, 
-                                 uint32_t tId, 
-                                 double fbRx, 
-                                 double lbRx,
-                                 std::string metaInfo = ""); 
+                  uint32_t fId,
+                  double fbTx,
+                  double lbTx,
+                  uint32_t tId,
+                  double fbRx,
+                  double lbRx,
+                  std::string metaInfo = "");
   void WriteXmlP (uint64_t animUid, std::string pktType, uint32_t fId, double fbTx, double lbTx);
-  void WriteXmlPRef (uint64_t animUid, uint32_t fId, double fbTx, std::string metaInfo = "");
+  void WriteXmlPRef (uint64_t animUid, uint32_t fId, double fbTx, double lbTx, std::string metaInfo = "");
   void WriteXmlClose (std::string name, bool routing = false);
   void WriteXmlNonP2pLinkProperties (uint32_t id, std::string ipv4Address, std::string channelType);
   void WriteXmlRouting (uint32_t id, std::string routingInfo);
@@ -812,7 +837,7 @@ public:
    *
    */
   static TypeId GetTypeId (void);
-  
+
   /**
    * \brief Get Instance Type Id
    * \returns Type Id
