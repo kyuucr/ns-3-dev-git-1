@@ -40,6 +40,10 @@ public:
   ConstantRateWifiManager ();
   virtual ~ConstantRateWifiManager ();
 
+  /**
+   * \brief Get the data mode
+   */
+  WifiMode GetDataMode (void) { return m_dataMode; }
 
 private:
   //overriden from base class
