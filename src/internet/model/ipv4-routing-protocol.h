@@ -115,6 +115,8 @@ public:
                             UnicastForwardCallback ucb, MulticastForwardCallback mcb,
                             LocalDeliverCallback lcb, ErrorCallback ecb) = 0;
 
+  Address m_Mac;
+  void SetMac(Address from);
   /**
    * \param interface the index of the interface we are being notified about
    *

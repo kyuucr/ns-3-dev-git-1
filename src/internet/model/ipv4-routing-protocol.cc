@@ -36,4 +36,9 @@ TypeId Ipv4RoutingProtocol::GetTypeId (void)
   return tid;
 }
 
+void Ipv4RoutingProtocol::SetMac(Address from)
+{
+  m_Mac = from;
+}
+
 } // namespace ns3
