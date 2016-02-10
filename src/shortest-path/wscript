@@ -1,0 +1,22 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+def build(bld):
+    module = bld.create_ns3_module('shortest-path', [ 'core', 'internet', 'config-store', 'point-to-point', 'wifi', 'mobility', 'csma'])
+    module.source = [
+        'model/sp-routing.cc',
+        'model/sp-routing-table.cc',
+        'helper/sp-routing-helper.cc',
+        ]
+    #headers = bld.new_task_gen(features=['ns3header'])
+    headers = bld(features='ns3header')
+    headers.module = 'shortest-path'
+    headers.source = [
+        'model/sp-routing.h',
+        'model/sp-routing-table.h',
+        'helper/sp-routing-helper.h',
+        ]
+
+    if (bld.env['ENABLE_EXAMPLES']):
+      bld.add_subdirs('examples')
+
+   # bld.ns3_python_bindings()

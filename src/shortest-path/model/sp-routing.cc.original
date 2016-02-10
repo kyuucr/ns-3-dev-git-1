@@ -1,0 +1,528 @@
+/* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
+/*
+ * Copyright (c) 2010 University of Arizona
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as 
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * Author: Junseok Kim <junseok@email.arizona.edu> <engr.arizona.edu/~junseok>
+ */
+
+#include "ns3/log.h"
+#include "ns3/ipv4.h"
+#include "ns3/ipv4-route.h"
+#include "ns3/pointer.h"
+#include "ns3/double.h"
+#include "ns3/ipv4-static-routing.h"
+#include "sp-routing.h"
+#include "ns3/trace-source-accessor.h"
+#include "ns3/callback.h"
+#include "ns3/point-to-point-net-device.h"
+#include "ns3/wifi-net-device.h"
+#include "ns3/enum.h"
+#include "ns3/uinteger.h"
+
+
+using namespace std;
+
+namespace ns3 {
+
+NS_LOG_COMPONENT_DEFINE ("SpRouting");
+
+NS_OBJECT_ENSURE_REGISTERED (ShortestPathRouting);
+
+TypeId
+ShortestPathRouting::GetTypeId (void)
+{
+  static TypeId tid = TypeId ("ns3::ShortestPathRouting")
+    .SetParent<Ipv4RoutingProtocol> ()
+    .AddConstructor<ShortestPathRouting> ()
+    .AddAttribute ("RoutingTable1", "Pointer to Routing Table 1.",
+                   PointerValue (),
+                   MakePointerAccessor (&ShortestPathRouting::SetRtable1),
+                   MakePointerChecker<ShortestPathRoutingTable> ())
+    .AddAttribute ("RoutingTable2", "Pointer to Routing Table 2.",
+		   PointerValue (),
+                   MakePointerAccessor (&ShortestPathRouting::SetRtable2),
+                   MakePointerChecker<ShortestPathRoutingTable> ())
+    .AddAttribute ("ShortestPathStrategy", "Shortest path Routing policy.",
+		    EnumValue (SINGLE_PATH),
+		    MakeEnumAccessor (&ShortestPathRouting::m_variant),
+		    MakeEnumChecker ( SINGLE_PATH, "single",
+				       MULTI_PATH, "multi"))
+    .AddAttribute ("RowNodes", "Number of nodes in a row",
+		    UintegerValue(5),
+		    MakeUintegerAccessor (&ShortestPathRouting::m_nodesRow),
+		    MakeUintegerChecker<uint32_t>())
+    .AddTraceSource ("TxBeginData", "Number of packets originated at the node",
+                     MakeTraceSourceAccessor (&ShortestPathRouting::m_TxBeginData))
+    .AddTraceSource ("TxDataAir", "Time to transmit the packet over the air interface.",
+		     MakeTraceSourceAccessor(&ShortestPathRouting::m_TxDataAir))
+    ;
+  return tid;
+}
+
+
+ShortestPathRouting::ShortestPathRouting () 
+{
+  m_rrobin = false;
+  NS_LOG_FUNCTION_NOARGS ();
+}
+
+ShortestPathRouting::~ShortestPathRouting () 
+{
+  NS_LOG_FUNCTION_NOARGS ();
+}
+
+Ptr<Ipv4Route>
+ShortestPathRouting::RouteOutput (Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, enum Socket::SocketErrno &sockerr)
+{
+  Ipv4Address relay;
+  std::vector<Ipv4Address> relays;
+  Ipv4Address src;
+  for (uint32_t i=1; i< m_ipv4->GetNInterfaces(); i++)
+  {
+    if (m_ipv4->IsUp(i))
+    {
+      //to determine the source/interface ip which is going to forward the packet
+      src = m_ipv4->GetAddress (i, 0).GetLocal();
+      relay = m_rtable1->LookupRoute(src, header.GetDestination ());
+      //std::cout<<"El valor de src: "<<src<<" y el valor de relay: "<<relay<<std::endl;
+      uint8_t buff_i[4], buff_j[4];
+      src.Serialize(buff_i);
+      relay.Serialize(buff_j);
+      int32_t diffNet = (int32_t)buff_i[2] - (int32_t)buff_j[2];;
+      if (diffNet==0 && src != relay)
+        break;
+    }
+  }
+  //src = m_ipv4->GetAddress (1, 0).GetLocal();
+  //std::cout<<"La address de este NetDevice es: "<<oif->GetAddress()<<std::endl;
+  uint32_t iface=1;
+  switch (m_variant)
+    {
+      case (0):
+	relay = m_rtable1->LookupRoute(src, header.GetDestination ());
+	iface = FindIfaceAssociatedtoRelay (relay);
+	//std::cout<<"El valor de relay: "<<relay<<" y se encuentra en la iface: "<<iface<<std::endl; 
+	break;
+      case (1):
+	if (!m_rrobin)
+	  {
+	    relay= m_rtable1->LookupRoute (src, header.GetDestination ());
+	    iface = FindIfaceAssociatedtoRelay (relay);
+	    m_rrobin = true;
+	  }
+	else 
+	  {
+	    relay= m_rtable2->LookupRoute (src, header.GetDestination ());
+	    iface = FindIfaceAssociatedtoRelay (relay);
+	    m_rrobin = false;
+	  }
+	break;
+    }
+  
+  Ipv4Address dst = header.GetDestination();
+  NS_LOG_FUNCTION (this << header.GetSource () << "->" << relay << "->" << header.GetDestination ());
+  NS_LOG_INFO ("Relay to " << relay);
+  
+  for (uint32_t i=0; i<m_address.size(); i++)
+  {
+    if (m_address[i] == relay)
+      {
+        NS_LOG_DEBUG ("Can't find route!!");
+        std::cout<<"el valor de m_address sin ruta: "<<m_address[i]<<std::endl;
+      }
+  }
+  
+  Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+  route->SetGateway (relay);
+  src = m_ipv4->GetAddress (1, 0).GetLocal();
+  route->SetSource (src);
+  route->SetDestination (header.GetDestination ());
+  route->SetOutputDevice(m_ipv4->GetNetDevice(iface));
+  //route->SetOutputDevice (m_ipv4->GetNetDevice (m_ifaceId));
+  
+  Ptr<NetDevice> aDev = route->GetOutputDevice();
+  Ptr<PointToPointNetDevice> aPtopDev = aDev->GetObject<PointToPointNetDevice> ();
+  Ptr<WifiNetDevice> aPtopDev2 = aDev->GetObject<WifiNetDevice> ();
+  int64_t rate_bps;
+  int32_t mode; //1 wifi, 2 ppp
+  if (aPtopDev2==NULL)
+    { //ppp device
+      rate_bps = aPtopDev->GetRatebps();
+      mode = 2;
+    }
+  else
+    { //wifi device
+      rate_bps = aPtopDev2->GetRatebps();
+      mode = 1;
+    }
+    
+   if (p!=NULL)
+     {
+       m_TxBeginData(src, dst, p, header, rate_bps, mode);
+       //m_TxBeginData(src, dst, p);
+       //tracing the number of data packets originated
+     }
+  
+  sockerr = Socket::ERROR_NOTERROR;
+  
+  return route;
+}
+
+bool 
+ShortestPathRouting::RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev, 
+                             UnicastForwardCallback ucb, MulticastForwardCallback mcb, 
+                             LocalDeliverCallback lcb, ErrorCallback ecb)
+{
+  NS_LOG_FUNCTION (header.GetDestination ());
+      
+  for (uint32_t i=0; i<m_address.size(); i++)
+  {
+    if (header.GetDestination () == m_address[i])
+      {
+        NS_LOG_DEBUG ("I'm the destination");
+        //std::cout<<"El ttl es: "<<(int)header.GetTtl()<<std::endl;
+        lcb (p, header, m_ipv4->GetInterfaceForDevice (idev));
+        return true;
+      }
+    else if (header.GetDestination () == m_broadcast[i])
+      {
+        NS_LOG_DEBUG ("It's broadcast");
+        return true;
+      }
+  }
+  
+  //else
+    //{
+      Mac48Address MACina = Mac48Address::ConvertFrom(idev->GetAddress());
+      Ipv4Address relay;
+      Ipv4Address src;
+      uint32_t iface;
+      MapMACAddressToIPinterface(MACina, iface);
+      src = m_ipv4->GetAddress (iface, 0).GetLocal();
+      //src = m_ipv4->GetAddress (1, 0).GetLocal();
+      
+      switch (m_variant)
+       {
+         case (0):
+	   //relay = m_rtable1->LookupRoute (m_address, header.GetDestination ());
+	   relay = m_rtable1->LookupRoute (src, header.GetDestination ());
+	   iface = FindIfaceAssociatedtoRelay (relay);
+	   break;
+         case (1):
+	   if (!m_rrobin)
+	     {
+	       //relay= m_rtable1->LookupRoute (m_address, header.GetDestination ());
+	       relay= m_rtable1->LookupRoute (src, header.GetDestination ());
+	       iface = FindIfaceAssociatedtoRelay (relay);
+	       m_rrobin = true;
+	     }
+	   else 
+	    {
+	      //relay= m_rtable2->LookupRoute (m_address, header.GetDestination ());
+	      relay= m_rtable2->LookupRoute (src, header.GetDestination ());
+	      iface = FindIfaceAssociatedtoRelay (relay); 
+	      m_rrobin = false;
+	    }
+	  break;
+       }
+  
+      NS_LOG_FUNCTION (this << src << "->" << relay << "->" << header.GetDestination ());
+      NS_LOG_DEBUG ("Relay to " << relay);
+      if (src == relay)
+        {
+          NS_LOG_DEBUG ("Can't find a route!!");
+        }
+      Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+      route->SetGateway (relay);
+      route->SetSource (header.GetSource ());
+      route->SetDestination (header.GetDestination ());
+      route->SetOutputDevice (m_ipv4->GetNetDevice (iface));
+      {
+        Ptr<NetDevice> aDev = route->GetOutputDevice();
+	Ptr<PointToPointNetDevice> aPtopDev = aDev->GetObject<PointToPointNetDevice> ();
+        Ptr<WifiNetDevice> aWifiDev = aDev->GetObject<WifiNetDevice> ();
+	int64_t rate_bps;
+        int32_t mode; //1 wifi, 2 ppp
+        if (aWifiDev==NULL)
+          { //ppp device
+             rate_bps = aPtopDev->GetRatebps();
+             mode = 2;
+          }
+        else
+          { //wifi device
+             rate_bps = aWifiDev->GetRatebps();
+             mode = 1;
+          }
+	m_TxDataAir(p, header, rate_bps,mode);
+      }     
+      ucb (route, p, header);
+      return true;
+    //} //end else condition
+  //return false;
+}
+
+bool
+ShortestPathRouting::RouteInput  (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev, const Address &from,
+                             UnicastForwardCallback ucb, MulticastForwardCallback mcb,
+                             LocalDeliverCallback lcb, ErrorCallback ecb)
+{
+  NS_LOG_FUNCTION (header.GetDestination ());
+  //std::cout<<"Estoy en RouteInput con MAC "<<Mac48Address::ConvertFrom(idev->GetAddress())<<std::endl;
+  
+  for (uint32_t i=0; i<m_address.size(); i++)
+  {
+    if (header.GetDestination () == m_address[i])
+    {
+      NS_LOG_DEBUG ("I'm the destination");
+      //std::cout<<"El ttl es: "<<(int)header.GetTtl()<<std::endl;
+      lcb (p, header, m_ipv4->GetInterfaceForDevice (idev));
+      return true;
+    }
+  else if (header.GetDestination () == m_broadcast[i])
+    {
+      NS_LOG_DEBUG ("It's broadcast");
+      return true;
+    }
+  }
+  
+  
+  //else
+    //{
+      Mac48Address MACina = Mac48Address::ConvertFrom(idev->GetAddress());
+      Ipv4Address relay;
+      Ipv4Address src;
+      uint32_t iface;
+      MapMACAddressToIPinterface(MACina, iface);
+      src = m_ipv4->GetAddress (iface, 0).GetLocal();
+      //src = m_ipv4->GetAddress (1,0).GetLocal();
+      
+      switch (m_variant)
+       {
+         case (0):
+	   relay = m_rtable1->LookupRoute (src, header.GetDestination ());
+	   iface = FindIfaceAssociatedtoRelay (relay);
+	   break;
+         case (1):
+	   if (!m_rrobin)
+	     {
+	       relay= m_rtable1->LookupRoute (src, header.GetDestination ());
+	       iface = FindIfaceAssociatedtoRelay (relay);
+	       m_rrobin = true;
+	     }
+	   else 
+	    {
+	      relay= m_rtable2->LookupRoute (src, header.GetDestination ());
+	      iface = FindIfaceAssociatedtoRelay (relay);
+	      m_rrobin = false;
+	    }
+	  break;
+       }
+  
+      NS_LOG_FUNCTION (this << src << "->" << relay << "->" << header.GetDestination ());
+      NS_LOG_DEBUG ("Relay to " << relay);
+      if (src == relay)
+        {
+          NS_LOG_DEBUG ("Can't find a route!!");
+        }
+      Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+      route->SetGateway (relay);
+      route->SetSource (header.GetSource ());
+      route->SetDestination (header.GetDestination ());
+      route->SetOutputDevice (m_ipv4->GetNetDevice (iface));
+      {
+        Ptr<NetDevice> aDev = route->GetOutputDevice();
+	Ptr<PointToPointNetDevice> aPtopDev = aDev->GetObject<PointToPointNetDevice> ();
+        Ptr<WifiNetDevice> aPtopDev2 = aDev->GetObject<WifiNetDevice> ();
+	int64_t rate_bps;
+        int32_t mode; //1 wifi, 2 ppp
+        if (aPtopDev2==NULL)
+          { //ppp device
+             rate_bps = aPtopDev->GetRatebps();
+             mode = 2;
+          }
+        else
+          { //wifi device
+             rate_bps = aPtopDev2->GetRatebps();
+             mode = 1;
+          }
+	m_TxDataAir(p, header, rate_bps,mode);
+      }     
+      ucb (route, p, header);
+      return true;
+    //}
+  //return false;
+}
+
+void 
+ShortestPathRouting::NotifyInterfaceUp (uint32_t interface)
+{
+  NS_LOG_FUNCTION (this << interface);
+}
+void 
+ShortestPathRouting::NotifyInterfaceDown (uint32_t interface)
+{
+  NS_LOG_FUNCTION (this << interface);
+}
+void 
+ShortestPathRouting::NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address)
+{
+  NS_LOG_FUNCTION(this << interface << address << m_rtable1);
+  NS_LOG_FUNCTION(this << interface << address << m_rtable2);
+  m_ifaceId.push_back(interface);
+  m_address.push_back(address.GetLocal ());
+  //std::cout<<"La local address = "<<m_address<<"y la interface: "<<m_ifaceId<<"en node"<<m_ipv4->GetObject<Node>()->GetId()+1<<std::endl;
+  m_broadcast.push_back(address.GetBroadcast ());
+}
+void 
+ShortestPathRouting::NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address)
+{
+  NS_LOG_FUNCTION(this << interface << address);
+}
+void 
+ShortestPathRouting::SetIpv4 (Ptr<Ipv4> ipv4)
+{
+  NS_LOG_FUNCTION(this << ipv4);
+  m_ipv4 = ipv4;
+}
+void
+ShortestPathRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream) const
+{
+  *stream->GetStream () << "Node: " << m_ipv4->GetObject<Node> ()->GetId ();
+  m_rtable1->Print (stream);
+  m_rtable2->Print (stream);
+}
+void
+ShortestPathRouting::SetRtable1 (Ptr<ShortestPathRoutingTable> p)
+{
+  NS_LOG_FUNCTION(p);
+  m_rtable1 = p;
+}
+
+void
+ShortestPathRouting::SetRtable2 (Ptr<ShortestPathRoutingTable> p)
+{
+  NS_LOG_FUNCTION(p);
+  m_rtable2 = p;
+}
+
+uint32_t
+ShortestPathRouting::FindIfaceAssociatedtoRelay (Ipv4Address relay)
+{
+  //this function finds the interface number of the current node which is in contact with the relay
+  
+  //check first if we are point to point 
+  Ptr<NetDevice> aDev = m_ipv4->GetNetDevice (1);
+  Ptr<WifiNetDevice> aWifiDev = aDev->GetObject<WifiNetDevice> ();
+  
+  if (aWifiDev!=NULL)
+    //we are using wifi devices single radio, so we return the unique useful interface
+    //if we use PtoP devices, we are in a grid
+    return 1;
+	
+  
+  uint8_t buff_curr[4];
+  uint8_t buff_relay[4];
+  m_ipv4->GetAddress (1, 0).GetLocal().Serialize(buff_curr);
+  relay.Serialize(buff_relay);
+  int32_t diffNet=0;
+  //uint32_t id_relay=105;
+  uint32_t direction=0; //1W, 2E, 3S, 4N
+  uint32_t id_local= m_ipv4->GetObject<Node>()->GetId();
+  uint32_t interface=1;
+  diffNet= (int32_t)buff_relay[2] - (int32_t)buff_curr[2];
+  if (diffNet==0)
+    {
+      if (((int32_t)buff_relay[3]-(int32_t)buff_curr[3]) > 0)
+	//id_relay = id_local + 1;
+      direction = 2;
+      else
+	//id_relay = id_local - 1;
+      direction = 1;
+    }
+  else if (diffNet== -1)
+    {
+	//id_relay = id_local - 1;
+	direction = 1;	
+    }
+  else if (diffNet == 1)
+    {
+       //id_relay = id_local + 1;
+       direction = 2;
+    }
+  else if (diffNet == (int32_t)m_nodesRow - 1)
+    {
+       //id_relay = id_local + m_nodesRow;
+       direction = 4;
+    }
+  else if (diffNet == 1 - (int32_t)m_nodesRow)
+    {
+       //id_relay = id_local - m_nodesRow;
+       direction = 3;
+    }
+    
+    switch (direction)
+    {
+      case 1: //W
+	interface = 1; //la idea es leerlo del vector de address
+	break;
+      case 2: //E
+	if (id_local % m_nodesRow == 0)
+	  interface = 1;
+	else
+	  interface = 2;
+	break;
+      case 3: //S
+	  if (m_ipv4->GetNInterfaces() >4)
+	    interface = 3;
+	  else
+	    interface = 2;
+	break;
+      case 4: //N
+         if (m_ipv4->GetNInterfaces() ==5)
+	   interface = 4;
+	 else if (m_ipv4->GetNInterfaces() ==4) //be careful: loopback interface
+	   interface = 3;
+	 else
+	   interface = 2;
+	break;
+    }
+    
+    return interface;
+}
+
+void
+ShortestPathRouting::MapMACAddressToIPinterface(Mac48Address MAC, uint32_t &interface)
+{
+  uint32_t tmp=0;
+  Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
+  while (tmp != theNode->GetNDevices()-1)
+    {
+      Mac48Address tmp_mac = Mac48Address::ConvertFrom(theNode->GetDevice(tmp)->GetAddress());
+      if (tmp_mac == MAC)
+       {
+	 interface = m_ipv4->GetInterfaceForDevice(theNode->GetDevice(tmp));
+	 return;
+       }
+      tmp++;
+    }
+}
+
+
+
+
+} // namespace ns3
+
+
