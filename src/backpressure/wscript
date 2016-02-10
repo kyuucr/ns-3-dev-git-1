@@ -1,0 +1,65 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+# def options(opt):
+#     pass
+
+# def configure(conf):
+#     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
+
+def build(bld):
+    module = bld.create_ns3_module('backpressure', ['core'])
+    module.source = [
+        'model/backpressure.cc',
+        'model/backpressure-state.cc',
+	'model/backpressure-header.cc',
+        'model/routing-packet-queue.cc',
+        'model/fifo-routing-packet-queue.cc',
+        'model/lifo-routing-packet-queue.cc',
+        'model/priority-routing-packet-queue.cc',
+        'model/edf-routing-packet-queue.cc',
+        'model/ring-routing-packet-queue.cc',
+        'model/grid-routing-packet-queue.cc',
+        'model/location-list.cc',
+	'model/wireless-ipv4-routing-protocol.cc',
+	'model/routing-metric.cc',
+	'model/etx-metric.cc',
+	'model/flowstats.cc',
+        'helper/backpressure-helper.cc',
+        'helper/backpressure-tracing-helper.cc',
+        'helper/seqtag.cc',
+        ]
+
+    module_test = bld.create_ns3_module_test_library('backpressure')
+    module_test.source = [
+        'test/backpressure-test-suite.cc',
+        ]
+
+    headers = bld(features='ns3header')
+    headers.module = 'backpressure'
+    headers.source = [
+        'model/backpressure.h',
+        'model/backpressure-repositories.h',
+        'model/backpressure-state.h',
+	'model/backpressure-header.h',
+        'model/routing-packet-queue.h',
+        'model/fifo-routing-packet-queue.h',
+        'model/lifo-routing-packet-queue.h',
+        'model/priority-routing-packet-queue.h',
+        'model/edf-routing-packet-queue.h',
+        'model/ring-routing-packet-queue.h',
+        'model/grid-routing-packet-queue.h',
+        'model/location-list.h',
+	'model/wireless-ipv4-routing-protocol.h',
+	'model/routing-metric.h',
+	'model/etx-metric.h',
+	'model/flowstats.h',
+        'helper/backpressure-helper.h',
+        'helper/backpressure-tracing-helper.h',
+        'helper/seqtag.h',
+        ]
+
+    if bld.env.ENABLE_EXAMPLES:
+        bld.recurse('examples')
+
+    # bld.ns3_python_bindings()
+
