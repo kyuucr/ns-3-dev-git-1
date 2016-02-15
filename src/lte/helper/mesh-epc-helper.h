@@ -87,6 +87,7 @@ public:
   // creation of mesh topology amongst enbs and satellite nodes
   void AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix, std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat, Ipv4ListRoutingHelper routingList/*NodeContainer satellites*/);
   void AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix, std::vector<std::vector<int> > terrestrialLinkRateMatrix, std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat, Ipv4ListRoutingHelper routingList);
+  static void TraceAndDebug (Ptr<NetDevice> first, Ptr<NetDevice> second);
   //Variable to store the type of link (fix or smart) in the backhaul and its state
   //std::multimap<int, std::pair<int, int> > m_info_interfaces;
   //-->we will store directly this information in the routing element (backpressure) to have available this information 

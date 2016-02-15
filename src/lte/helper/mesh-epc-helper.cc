@@ -49,6 +49,11 @@
 #include "ns3/backpressure.h"
 #include "ns3/mobility-module.h"
 #include "ns3/node-list.h"
+#include "ns3/tcp-header.h"
+#include "ns3/ipv4-header.h"
+#include "ns3/ppp-header.h"
+#include "ns3/epc-gtpu-header.h"
+#include "ns3/udp-header.h"
 
 namespace ns3 {
 
@@ -56,6 +61,97 @@ NS_LOG_COMPONENT_DEFINE ("MeshEpcHelper");
 
 NS_OBJECT_ENSURE_REGISTERED (MeshEpcHelper);
 
+static void
+Fail (const std::string &name, Ptr<const Packet> p)
+{
+  NS_FATAL_ERROR (name << " SPOTTED A DROP!!");
+}
+
+
+static std::string
+PrintPacket (Ptr<Packet> p)
+{
+  Ipv4Header ipv4;
+  TcpHeader tcp;
+  PppHeader ppp;
+  UdpHeader udp;
+  GtpuHeader gtpu;
+  uint32_t size;
+
+  size = p->RemoveHeader (ppp);
+  NS_ASSERT (size > 0);
+
+  size = p->RemoveHeader (ipv4);
+  NS_ASSERT (size > 0);
+
+
+  std::stringstream ret;
+
+
+  if (ipv4.GetProtocol() == UDP_PROT_NUMBER)
+    {
+      size = p->RemoveHeader(udp);
+
+      if (udp.GetSourcePort() == 698)
+        {
+          return "";
+        }
+
+      size = p->RemoveHeader(gtpu);
+      if (size > 0)
+        {
+          size = p->RemoveHeader (ipv4);
+          NS_ASSERT (size > 0);
+          size = p->RemoveHeader (tcp);
+          NS_ASSERT (size > 0);
+          ret << " From: " << ipv4.GetSource() << " to: " << ipv4.GetDestination() <<
+                 " seq: " << tcp.GetSequenceNumber() << " ack: " << tcp.GetAckNumber() <<
+                 " size: " << p->GetSize () << " flags: " << TcpHeader::FlagsToString(tcp.GetFlags());
+        }
+    }
+  else if (ipv4.GetProtocol() == TCP_PROT_NUMBER)
+    {
+      size = p->RemoveHeader (tcp);
+      NS_ASSERT (size > 0);
+      ret << " From: " << ipv4.GetSource() << " to: " << ipv4.GetDestination() <<
+             " seq: " << tcp.GetSequenceNumber() << " ack: " << tcp.GetAckNumber() <<
+             " size: " << p->GetSize () << " flags: " << TcpHeader::FlagsToString(tcp.GetFlags());
+    }
+
+  return ret.str ();
+}
+
+static void
+TraceTx (const std::string &name, Ptr<const Packet> p)
+{
+  std::string s = PrintPacket (p->Copy());
+
+  if (!s.empty())
+    NS_LOG_DEBUG (Simulator::Now().GetSeconds() << " [TX] " <<
+                  name << s);
+}
+
+static void
+TraceRx (const std::string &name, Ptr<const Packet> p)
+{
+  std::string s = PrintPacket (p->Copy());
+
+  if (!s.empty())
+    NS_LOG_DEBUG (Simulator::Now().GetSeconds() << " [RX] " <<
+                  name << s);
+}
+
+void
+MeshEpcHelper::TraceAndDebug (Ptr<NetDevice> first, Ptr<NetDevice> second)
+{
+  first->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName(first->GetNode())));
+  first->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName(first->GetNode())));
+  first->TraceConnectWithoutContext ("MacTxDrop", MakeBoundCallback (&Fail, Names::FindName(first->GetNode())));
+
+  second->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName(second->GetNode())));
+  second->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName(second->GetNode())));
+  second->TraceConnectWithoutContext ("MacTxDrop", MakeBoundCallback (&Fail, Names::FindName(second->GetNode())));
+}
 
 MeshEpcHelper::MeshEpcHelper () 
   : m_gtpuUdpPort (2152)  // fixed by the standard
@@ -130,8 +226,7 @@ MeshEpcHelper::GetTypeId (void)
     .AddConstructor<MeshEpcHelper> ()
     .AddAttribute ("S1uLinkDataRate", 
                    "The data rate to be used for the next S1-U link to be created",
-                   DataRateValue (DataRate ("12.05Mb/s")),
-		   //DataRateValue (DataRate("500Mb/s")),
+                   DataRateValue (DataRate ("500Mb/s")),
                    MakeDataRateAccessor (&MeshEpcHelper::m_s1uLinkDataRateTerrestrial),
                    MakeDataRateChecker ())
     .AddAttribute ("S1uLinkDataRateSatellite", 
@@ -141,7 +236,7 @@ MeshEpcHelper::GetTypeId (void)
                    MakeDataRateChecker ())
     .AddAttribute ("S1uLinkDelay", 
                    "The delay to be used for the next S1-U link to be created",
-                   TimeValue (Seconds (0.00005)), //50microseconds ~ 10km
+                   TimeValue (MilliSeconds (4)),
                    MakeTimeAccessor (&MeshEpcHelper::m_s1uLinkDelayTerrestrial),
                    MakeTimeChecker ())
     .AddAttribute ("S1uLinkDelaySatellite", 
@@ -151,12 +246,12 @@ MeshEpcHelper::GetTypeId (void)
                    MakeTimeChecker ())
     .AddAttribute ("S1uLinkMtu", 
                    "The MTU of the next S1-U link to be created. Note that, because of the additional GTP/UDP/IP tunneling overhead, you need a MTU larger than the end-to-end MTU that you want to support.",
-                   UintegerValue (2000),
+                   UintegerValue (30000),
                    MakeUintegerAccessor (&MeshEpcHelper::m_s1uLinkMtuTerrestrial),
                    MakeUintegerChecker<uint16_t> ())
     .AddAttribute ("S1uLinkMtuSatellite", 
                    "The MTU of the next S1-U link to be created. Note that, because of the additional GTP/UDP/IP tunneling overhead, you need a MTU larger than the end-to-end MTU that you want to support.",
-                   UintegerValue (2000),
+                   UintegerValue (30000),
                    MakeUintegerAccessor (&MeshEpcHelper::m_s1uLinkMtuSatellite),
                    MakeUintegerChecker<uint16_t> ())
     .AddAttribute ("X2LinkDataRate",
@@ -166,12 +261,12 @@ MeshEpcHelper::GetTypeId (void)
                    MakeDataRateChecker ())
     .AddAttribute ("X2LinkDelay",
                    "The delay to be used for the next X2 link to be created",
-                   TimeValue (Seconds (0)),
+                   TimeValue (MilliSeconds (5)),
                    MakeTimeAccessor (&MeshEpcHelper::m_x2LinkDelay),
                    MakeTimeChecker ())
     .AddAttribute ("X2LinkMtu",
                    "The MTU of the next X2 link to be created. Note that, because of some big X2 messages, you need a big MTU.",
-                   UintegerValue (3000),
+                   UintegerValue (30000),
                    MakeUintegerAccessor (&MeshEpcHelper::m_x2LinkMtu),
                    MakeUintegerChecker<uint16_t> ())
   ;
@@ -213,6 +308,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
   //std::pair<double, double> selected_channel;
   int32_t numberEnodeBs = enbs.GetN();
   int SatGw = std::count (terrestrialSat.begin(), terrestrialSat.end(), 1);
+
   if (SatGw !=0)
     { //if there is satellite gw, install the internet stack helper
       numberEnodeBs = numberEnodeBs-1;
@@ -249,6 +345,9 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<<enb->GetId()-1<<" after installing p2p dev: " << enb->GetObject<Ipv4> ()->GetNInterfaces ());  
           Ptr<NetDevice> enbDev = enbSgwDevices.Get (0);
           Ptr<NetDevice> sgwDev = enbSgwDevices.Get (1);
+
+          TraceAndDebug (enbDev, sgwDev);
+
           m_s1uIpv4AddressHelper.NewNetwork ();
           Ipv4InterfaceContainer enbSgwIpIfaces = m_s1uIpv4AddressHelper.Assign (enbSgwDevices);
           NS_LOG_INFO ("number of Ipv4 ifaces of the eNB after assigning Ipv4 addr to S1 dev: " << enb->GetObject<Ipv4> ()->GetNInterfaces ());
@@ -367,6 +466,9 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
 	      //selected_channel = m_channelModels[sel];
 	      //p2ph.SetChannelAttribute ("Delay", TimeValue(Seconds (selected_channel.second)));  
 	      NetDeviceContainer n_devs = p2phterr.Install (n_links);
+
+       TraceAndDebug (n_devs.Get(0), n_devs.Get(1));
+
               m_s1uIpv4AddressHelper.NewNetwork ();
               m_s1uIpv4AddressHelper.Assign (n_devs);
               NS_LOG_INFO (" eNB "<< i <<" connected to eNB "<< j);
@@ -618,6 +720,7 @@ MeshEpcHelper::AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector
 	      p2phterr.SetChannelAttribute ("Delay", TimeValue (Seconds(distance/3e8))); 
 	      
 	      NetDeviceContainer n_devs = p2phterr.Install (n_links);
+
               m_s1uIpv4AddressHelper.NewNetwork ();
               m_s1uIpv4AddressHelper.Assign (n_devs);
               /*NS_LOG_INFO (" eNB "<< i <<" connected to eNB "<< j);
