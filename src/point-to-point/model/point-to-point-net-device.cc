@@ -123,6 +123,11 @@ PointToPointNetDevice::GetTypeId (void)
                      "transmitting over the channel",
                      MakeTraceSourceAccessor (&PointToPointNetDevice::m_phyTxBeginTrace),
                      "ns3::Packet::TracedCallback")
+    .AddTraceSource ("Dequeue",
+                     "Trace source indicating that the PtoP net device has not more enqueued "
+                     "packets at L2 and ask for packets from L3",
+                     MakeTraceSourceAccessor (&PointToPointNetDevice::m_DequeueTrace),
+                     "ns3::MACAddress::TracedCallback")
     .AddTraceSource ("PhyTxEnd", 
                      "Trace source indicating a packet has been "
                      "completely transmitted over the channel",
@@ -286,6 +291,7 @@ PointToPointNetDevice::TransmitComplete (void)
       //
       // No packet was on the queue, so we just exit.
       //
+      m_DequeueTrace (GetAddress ());
       return;
     }
 

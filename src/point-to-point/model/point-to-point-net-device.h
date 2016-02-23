@@ -380,6 +380,12 @@ private:
   TracedCallback<Ptr<const Packet> > m_phyTxBeginTrace;
 
   /**
+   * The trace source fired when there is not more packets in L2 queue to ask
+   * for a packet from L3.
+   */
+  TracedCallback<Address> m_DequeueTrace;
+
+  /**
    * The trace source fired when a packet ends the transmission process on
    * the medium.
    */
