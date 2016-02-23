@@ -356,8 +356,8 @@ PopulateArpCache (NodeContainer nodes)
               if(ipAddr == Ipv4Address::GetLoopback () || ipAddr.IsEqual ("7.0.0.1") )
                 continue;
               ArpCache::Entry * entry = arp->Add (ipAddr);
-              entry->MarkWaitReply (0);
-              entry->MarkAlive (addr);
+              entry->SetMacAddresss (addr);
+              entry->MarkPermanent ();
             }
         }
     }
