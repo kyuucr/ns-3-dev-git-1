@@ -18,7 +18,6 @@ def build(bld):
 
     gpsr_test = bld.create_ns3_module_test_library('gpsr')
     gpsr_test.source = [
-        'test/gpsr-test-suite.cc',
         ]
 
 
