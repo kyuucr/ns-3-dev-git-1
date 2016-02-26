@@ -101,6 +101,7 @@ TcpGeneralTest::ConfigureEnvironment ()
   SetAppPktCount (10);
   SetAppPktInterval (MilliSeconds (1));
   SetMTU (1500);
+  SetConnectTime (Seconds (0.0));
 }
 
 void
@@ -113,19 +114,14 @@ TcpGeneralTest::ConfigureProperties ()
   SetSegmentSize (RECEIVER, 500);
 }
 
-void
-TcpGeneralTest::DoRun (void)
+Ipv4Address
+TcpGeneralTest::MakeEnvironment (Ptr<Node> sender, Ptr<Node> receiver)
 {
-  ConfigureEnvironment ();
-
-  NS_LOG_INFO ("Create nodes.");
   NodeContainer nodes;
-  nodes.Create (2);
-
+  nodes.Add (sender);
+  nodes.Add (receiver);
   InternetStackHelper internet;
   internet.Install (nodes);
-
-  Packet::EnablePrinting ();
 
   Ptr<SimpleChannel> channel = CreateChannel ();
 
@@ -160,6 +156,22 @@ TcpGeneralTest::DoRun (void)
   Ipv4InterfaceContainer i = ipv4.Assign (net);
   Ipv4Address serverAddress = i.GetAddress (1);
   //Ipv4Address clientAddress = i.GetAddress (0);
+
+  return serverAddress;
+}
+
+void
+TcpGeneralTest::DoRun (void)
+{
+  ConfigureEnvironment ();
+
+  NS_LOG_INFO ("Create nodes.");
+  NodeContainer nodes;
+  nodes.Create (2);
+
+  Packet::EnablePrinting ();
+
+  Ipv4Address serverAddress = MakeEnvironment (nodes.Get (0), nodes.Get (1));
 
   NS_LOG_INFO ("Create sockets.");
   //Receiver socket on n1
@@ -214,8 +226,7 @@ TcpGeneralTest::DoRun (void)
   m_receiverSocket->Listen ();
   m_receiverSocket->ShutdownSend ();
 
-  Simulator::Schedule (Seconds (0.0),
-                       &TcpGeneralTest::DoConnect, this);
+  Simulator::Schedule (m_connectTime, &TcpGeneralTest::DoConnect, this);
   Simulator::ScheduleWithContext (nodes.Get (0)->GetId (),
                                   m_startTime, &TcpGeneralTest::SendPacket, this,
                                   m_senderSocket, m_pktSize, m_pktCount, m_interPacketInterval);

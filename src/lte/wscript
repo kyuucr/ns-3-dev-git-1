@@ -126,6 +126,7 @@ def build(bld):
 
     module_test = bld.create_ns3_module_test_library('lte')
     module_test.source = [
+        'test/tcp-buffer-size.cc',
         'test/lte-test-downlink-sinr.cc',
         'test/lte-test-uplink-sinr.cc',
         'test/lte-test-link-adaptation.cc',

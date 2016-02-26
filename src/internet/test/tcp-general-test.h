@@ -324,6 +324,8 @@ protected:
    */
   virtual void ConfigureProperties (void);
 
+  virtual Ipv4Address MakeEnvironment (Ptr<Node> sender, Ptr<Node> receiver);
+
   /**
    * \brief Teardown the TCP test
    */
@@ -555,6 +557,13 @@ protected:
    * \param pktInterval interval
    */
   void SetAppPktInterval (Time pktInterval) { m_interPacketInterval = pktInterval; }
+
+  /**
+   * \brief Set the connect time
+   *
+   * \param connectTime the time at which the application will connect
+   */
+  void SetConnectTime (Time connectTime) { m_connectTime = connectTime; }
 
   /**
    * \brief Propagation delay of the bottleneck link
@@ -830,6 +839,7 @@ private:
   uint32_t m_pktCount;             //!< Count of the application packet
   Time     m_interPacketInterval;  //!< Time between sending application packet
                                    //   down to tcp socket
+  Time     m_connectTime;          //!< Time at which application will connect
 
   Ptr<TcpSocketMsgBase> m_senderSocket;   //!< Pointer to sender socket
   Ptr<TcpSocketMsgBase> m_receiverSocket; //!< Pointer to receiver socket
