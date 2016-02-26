@@ -372,7 +372,7 @@ LteRlcUm::DoNotifyTxOpportunity (uint32_t bytes, uint8_t layer, uint8_t harqId)
 
   // Sender timestamp
   RlcTag rlcTag (Simulator::Now ());
-  packet->AddByteTag (rlcTag);
+  packet->AddPacketTag (rlcTag);
   m_txPdu (m_rnti, m_lcid, packet->GetSize ());
 
   // Send RLC PDU to MAC layer
@@ -406,9 +406,10 @@ LteRlcUm::DoReceivePdu (Ptr<Packet> p)
   // Receiver timestamp
   RlcTag rlcTag;
   Time delay;
-  if (p->FindFirstMatchingByteTag (rlcTag))
+  if (p->PeekPacketTag (rlcTag))
     {
       delay = Simulator::Now() - rlcTag.GetSenderTimestamp ();
+      p->RemovePacketTag (rlcTag);
     }
   m_rxPdu (m_rnti, m_lcid, p->GetSize (), delay.GetNanoSeconds ());
 

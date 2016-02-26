@@ -188,7 +188,7 @@ LtePdcp::DoTransmitPdcpSdu (Ptr<Packet> p)
 
   // Sender timestamp
   PdcpTag pdcpTag (Simulator::Now ());
-  p->AddByteTag (pdcpTag);
+  p->AddPacketTag (pdcpTag);
   m_txPdu (m_rnti, m_lcid, p->GetSize ());
 
   LteRlcSapProvider::TransmitPdcpPduParameters params;
@@ -207,9 +207,10 @@ LtePdcp::DoReceivePdu (Ptr<Packet> p)
   // Receiver timestamp
   PdcpTag pdcpTag;
   Time delay;
-  if (p->FindFirstMatchingByteTag (pdcpTag))
+  if (p->PeekPacketTag (pdcpTag))
     {
       delay = Simulator::Now() - pdcpTag.GetSenderTimestamp ();
+      p->RemovePacketTag (pdcpTag);
     }
   m_rxPdu(m_rnti, m_lcid, p->GetSize (), delay.GetNanoSeconds ());
 

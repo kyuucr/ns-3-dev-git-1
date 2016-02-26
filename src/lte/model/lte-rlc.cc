@@ -219,9 +219,10 @@ LteRlcSm::DoReceivePdu (Ptr<Packet> p)
   // RLC Performance evaluation
   RlcTag rlcTag;
   Time delay;
-  if (p->FindFirstMatchingByteTag(rlcTag))
+  if (p->PeekPacketTag (rlcTag))
     {
       delay = Simulator::Now() - rlcTag.GetSenderTimestamp ();
+      p->RemovePacketTag (rlcTag);
     }
   NS_LOG_LOGIC (" RNTI=" << m_rnti 
                 << " LCID=" << (uint32_t) m_lcid 
@@ -243,7 +244,7 @@ LteRlcSm::DoNotifyTxOpportunity (uint32_t bytes, uint8_t layer, uint8_t harqId)
 
   // RLC Performance evaluation
   RlcTag tag (Simulator::Now());
-  params.pdu->AddByteTag (tag);
+  params.pdu->AddPacketTag (tag);
   NS_LOG_LOGIC (" RNTI=" << m_rnti 
                 << " LCID=" << (uint32_t) m_lcid 
                 << " size=" << bytes);
