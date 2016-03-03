@@ -287,7 +287,6 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
     }
   uint32_t qlen_max;*/
   //we give priority to the requeued packet to go out through this interface
-  
   Ptr<NetDevice> aDev = m_ipv4->GetNetDevice (woke_interface);
   Ptr<WifiNetDevice> aWifiDev = aDev->GetObject<WifiNetDevice> ();
   
@@ -301,6 +300,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
     //the requeue flag will not be set different to zero before determining its next_hop
     if((anEntry.requeued==1) || (anEntry.requeued==2 ))
     {
+      //std::cout<<"UL TRAFFIC callback requeued in node"<<m_ipv4->GetObject<Node>()->GetId()<<"!!"<<std::endl;
       //this packet is derived to the other interface because there is overloading in the queue, so we should sent it
       the_nh=m_state.FindtheNeighbourAtThisInterface(woke_interface);
       rtentry->SetGateway (the_nh);
@@ -377,7 +377,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 	    //sansa-lena
 	    if (m_ipv4->GetObject<Node>()->GetId() == 0 && dstAddr.IsEqual("1.0.0.2") )
 	      { //the packet is in EPC and has been deencapsulated
-	        //std::cout<<"UL TRAFFIC ROUTE INPUT!!"<<std::endl;
+	        //std::cout<<"UL TRAFFIC  callback in node"<<m_ipv4->GetObject<Node>()->GetId()<<"!!"<<std::endl;
 	        the_nh = dstAddr;
 		uint8_t buf[4];
 		the_nh.Serialize(buf);
@@ -385,21 +385,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 		Ipv4Address tmp_addr= Ipv4Address::Deserialize(buf);
 		iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
 	      }
-	    else if ((m_state.GetTerrGwNodeValue() && !SatFlow ) || (m_ipv4->GetObject<Node>()->GetId() == (NodeList::GetNNodes()-1)) )
-	      { //do not compute anything because next hop is EPC
-		Ptr<Node> node = NodeList::GetNode(0);
-		Ipv4Address tmp_addr = node->GetObject<Ipv4>()->GetAddress(3,0).GetLocal();
-		if (dstAddr.IsEqual(tmp_addr))
-		  {
-		    the_nh = dstAddr;
-		    uint8_t buf[4];
-		    the_nh.Serialize(buf);
-		    buf[3]=buf[3]-1;
-		    Ipv4Address tmp_addr= Ipv4Address::Deserialize(buf);
-		    iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
-		  }		
-	      }
-	    else
+	   else
 	      {
 		if (LocationList::m_SatGws.size()>0)
 		  {
@@ -407,7 +393,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 		    Ipv4Address tmp_addr = node->GetObject<Ipv4>()->GetAddress(3,0).GetLocal();
 		    if (dstAddr.IsEqual(tmp_addr))
 		      {  //these cases are to force the marked SatFlows to go through the satellite
-		        //std::cout<<"UL TRAFFIC callback!!"<<std::endl;
+		        //std::cout<<"UL TRAFFIC callback in node"<<m_ipv4->GetObject<Node>()->GetId()<<"!!"<<std::endl;
 		        if (m_ipv4->GetObject<Node>()->GetId() == (NodeList::GetNNodes()-1) || !(SatFlow) )
 		          { //we are in the node that connects the satellite link with the EPC (the extraEnodeB)
 		            ///new function to determine next hop in multi-radio
@@ -427,7 +413,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 		      }
 		    else
 		      {
-			//std::cout<<"DL TRAFFIC callback!!"<<std::endl;
+			//std::cout<<"DL TRAFFIC callback in node"<<m_ipv4->GetObject<Node>()->GetId()<<"!!"<<std::endl;
 			if (m_ipv4->GetObject<Node>()->GetId() == 0 && SatFlow)
 			  { //this case is to force that a SatFlow goes through the satellite 
 			    Ptr<Node> satNode = NodeList::GetNode(NodeList::GetNNodes()-1);
@@ -450,6 +436,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 		    //there are no satellite gw's.
 		    ///new function to determine next hop in multi-radio
 		    ///the_nh = m_state.FindNextHopBackpressureCentralizedGridSANSALena(ifAddr.GetLocal(), srcAddr, dstAddr, v, iface, m_ipv4, hwAddr, erased, prev_nh, SatFlow);
+		    //std::cout<<"DL TRAFFIC callback in node"<<m_ipv4->GetObject<Node>()->GetId()<<"!!"<<std::endl;
 		    the_nh = m_state.FindNextHopBackpressureCentralizedGridSANSALenaMR(ifAddr.GetLocal(), srcAddr, dstAddr, v, iface, woke_interface, m_ipv4, hwAddr, erased, prev_nh, SatFlow);
 		    //std::cout<<"El nexthop es: "<<the_nh<<" y la iface: "<<iface<<std::endl;
 		  }
@@ -458,7 +445,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 	      {
 		//the flow table is only updated when we have a neighbor, otherwise we can create a wrong rule, creating a loop
 	        m_state.UpdateFlowTableEntry(srcAddr, dstAddr, ifAddr.GetLocal(), s_port, d_port, the_nh, iface, ttl);
-		if (m_ipv4->GetObject<Node>()->GetId() ==0)
+		if (m_ipv4->GetObject<Node>()->GetId() == 0)
 		  std::cout<<"the nexthop en EPC "<<m_ipv4->GetObject<Node>()->GetId()<<" srcAddr: "<<srcAddr<<" dstAddr: "<<dstAddr<<" nexthop: "<<the_nh<<" time: "<<Simulator::Now()<<" destination port: "<<d_port<<" source port: "<<s_port<<std::endl;
 		else
 		  std::cout<<"the nexthop en eNodeB "<<m_ipv4->GetObject<Node>()->GetId()-1<<" srcAddr: "<<srcAddr<<" dstAddr: "<<dstAddr<<" nexthop: "<<the_nh<<" time "<<Simulator::Now()<<" y destination port: "<<d_port<<" source port: "<<s_port<<std::endl;
@@ -466,99 +453,149 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 	  } //end the_nh==127.0.0.1      
     } //end m_variant
   
-  ///Deciding where to send the packet
-  NS_LOG_DEBUG("[TxOpportunityCallback]: the next hop is "<<the_nh);
-  if (iface == 0)
-    {
-      //packet cannot be transmitted for any interface
-      return;
-    }
-  if ( !the_nh.IsEqual("127.0.0.1") && m_ipv4->IsUp(iface))
-  {
-    if (iface == woke_interface)
+ uint32_t output_interface=woke_interface; 
+///Deciding where to send the packet   
+    NS_LOG_DEBUG("[TxOpportunityCallback]: the next hop is "<<the_nh);
+    if (iface == 0) //packet cannot be forwarded
       {
-	//the packet can be sent for the eth that requested the opportunity
-        rtentry->SetGateway (the_nh);
-        Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
-        Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (woke_interface, 0);
-        rtentry->SetSource (oifAddr.GetLocal ());
-        rtentry->SetOutputDevice (m_ipv4->GetNetDevice (woke_interface));
-        SendQueuedData(rtentry);
-	//let's see if other ifaces are unactive
-	FireTxOpportunities(iface);
+        //packet cannot be transmitted for any interface
+        return;
       }
-    else
-      {// iface != woke_interface: the packet was not enqueued properly
-        rtentry->SetGateway (the_nh);
-        Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
-        Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (iface, 0);
-        rtentry->SetSource (oifAddr.GetLocal ());
-        rtentry->SetOutputDevice (m_ipv4->GetNetDevice (iface));
-        Ptr<NetDevice> aDev = rtentry->GetOutputDevice();
-	bool serviced = (GetMacQueueSize(aDev) < 2);
-	if (serviced)
-          { //let's transmit through the other interface
-            bool canItx = m_queuedData->Dequeue(anEntry, queue_woke_interface);
-            if (canItx)
-              {
-	        //std::cout<<"TxOpportunity changes the interface and transmit through other iface"<<std::endl;
-	        UnicastForwardCallback qucb;
-                Ptr<const Packet> qPacket;
-                Ipv4Header qHeader;
-	        qHeader = anEntry.GetHeader();
-                qucb = anEntry.GetUcb();
-                qPacket = anEntry.GetPacket(); 
-	        Ptr<PointToPointNetDevice> aPtopDev = aDev->GetObject<PointToPointNetDevice> ();
-                Ptr<WifiNetDevice> aWifiDev = aDev->GetObject<WifiNetDevice> ();
-	        uint64_t rate_bps;
-	        int32_t mode;
-	        if (aWifiDev == NULL)
-	          { //ppp device
-	            rate_bps = aPtopDev->GetRatebps();
-		    mode = 2;
+    if ( !the_nh.IsEqual("127.0.0.1") && m_ipv4->IsUp(iface)) 
+      { //there is a next hop and the interface is available
+        if (iface == output_interface)
+	  {
+	    //packet sent through this interface
+            Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (iface, 0);
+            rtentry->SetSource (oifAddr.GetLocal ());
+	    rtentry->SetGateway (the_nh);
+	    rtentry->SetOutputDevice (m_ipv4->GetNetDevice (iface));
+	    SendQueuedData(rtentry);
+	    return;
+	  }
+	else
+	  {
+	    //iface !=woke_interface: the packet was not enqueued properly
+            //an enqueue, prior to make the SendQueuedData operation
+	    if (anEntry.requeued!=0 && m_ipv4->IsUp(output_interface))
+              { //in theory this should never happen as when changing interfaces
+                //we empty the queues
+	        //this packet has been treated before, so we can send it
+                Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (output_interface, 0);
+                rtentry->SetSource (oifAddr.GetLocal ());
+	        rtentry->SetGateway (the_nh);
+	        rtentry->SetOutputDevice (m_ipv4->GetNetDevice (output_interface));
+	        SendQueuedData(rtentry);
+	        return;
+              }
+            else
+              { //entry requeued ==0, so we dequeue from output_interface and we send through interface
+	        uint32_t tmp = output_interface;
+	        bool ret = m_queuedData->Dequeue(anEntry, tmp);
+	        if (ret)
+	          {
+	            anEntry.requeued = 1;
+	            QueueData(anEntry.GetPacket(), anEntry.GetHeader(), hwAddr, anEntry.GetUcb(), iface, ret, anEntry.GetTstamp());
 	          }
 	        else
-	          {
-		    rate_bps = aWifiDev->GetRatebps();
-		    mode = 1;
-	          }
-	        m_TxData(qHeader, qPacket, aDev->GetIfIndex ()); 
-	        m_TxDataAir(qPacket, qHeader,rate_bps, mode);	  
-                rtentry->SetSource(qHeader.GetSource());
-                rtentry->SetDestination(qHeader.GetDestination());
-                qucb (rtentry, qPacket, qHeader);
-		//let's see if other ifaces are unactive
-	        FireTxOpportunities(iface);
-		
-	      }
-	    else
-	      {
-	        std::cout<<"Desencolo para nada"<<std::endl;
-	      }
-          }
-        else
-          {
-	    //if not, we will enqueue this packet at the beginning of the other queue
-	    //std::cout<<"TxOpportunity, la ruta se cambia y se tx por el otro interfaz"<<std::endl;
-	    if (anEntry.requeued==0 || anEntry.requeued==2)
-	      {
-	        bool requeue_the_packet = m_queuedData->Dequeue(anEntry, queue_woke_interface);
-	        if (requeue_the_packet)
-	        {
-	          anEntry.requeued = 1;
-	          QueueData(anEntry.GetPacket(), anEntry.GetHeader(),hwAddr, anEntry.GetUcb(), iface, requeue_the_packet, anEntry.GetTstamp()); 
-		  //let's see if other ifaces are unactive. In this case this own iface has to be callback 
-		  //because it has not tx anything, just enqueue a packet, so we place provide an impossible iface number
-	          FireTxOpportunities(100);
-	        }  
-	      else
-	        return;
-	      }
-	    else
-	      return;	    
-          }
-      }        
-  } //end if !the_nh.IsEqual("127.0.0.1")
+	          return;
+              } 
+            Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (iface, 0);
+            rtentry->SetSource (oifAddr.GetLocal ());
+            rtentry->SetGateway (the_nh);
+	    rtentry->SetOutputDevice (m_ipv4->GetNetDevice (iface));
+	    SendQueuedData(rtentry);   
+	    return;     
+	  }
+      }
+  return;
+  
+  ///Deciding where to send the packet
+//   NS_LOG_DEBUG("[TxOpportunityCallback]: the next hop is "<<the_nh);
+//   if (iface == 0)
+//     {
+//       //packet cannot be transmitted for any interface
+//       return;
+//     }
+//   if ( !the_nh.IsEqual("127.0.0.1") && m_ipv4->IsUp(iface))
+//   {
+//     if (iface == woke_interface)
+//       {
+// 	//the packet can be sent for the eth that requested the opportunity
+//         rtentry->SetGateway (the_nh);
+//         Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
+//         Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (woke_interface, 0);
+//         rtentry->SetSource (oifAddr.GetLocal ());
+//         rtentry->SetOutputDevice (m_ipv4->GetNetDevice (woke_interface));
+//         SendQueuedData(rtentry);
+//       }
+//     else
+//       {// iface != woke_interface: the packet was not enqueued properly
+//         rtentry->SetGateway (the_nh);
+//         Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
+//         Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (iface, 0);
+//         rtentry->SetSource (oifAddr.GetLocal ());
+//         rtentry->SetOutputDevice (m_ipv4->GetNetDevice (iface));
+//         Ptr<NetDevice> aDev = rtentry->GetOutputDevice();
+// 	bool serviced = (GetMacQueueSize(aDev) < 2);
+// 	if (serviced)
+//           { //let's transmit through the other interface
+//             bool canItx = m_queuedData->Dequeue(anEntry, queue_woke_interface);
+//             if (canItx)
+//               {
+// 	        //std::cout<<"TxOpportunity changes the interface and transmit through other iface"<<std::endl;
+// 	        UnicastForwardCallback qucb;
+//                 Ptr<const Packet> qPacket;
+//                 Ipv4Header qHeader;
+// 	        qHeader = anEntry.GetHeader();
+//                 qucb = anEntry.GetUcb();
+//                 qPacket = anEntry.GetPacket(); 
+// 	        Ptr<PointToPointNetDevice> aPtopDev = aDev->GetObject<PointToPointNetDevice> ();
+//                 Ptr<WifiNetDevice> aWifiDev = aDev->GetObject<WifiNetDevice> ();
+// 	        uint64_t rate_bps;
+// 	        int32_t mode;
+// 	        if (aWifiDev == NULL)
+// 	          { //ppp device
+// 	            rate_bps = aPtopDev->GetRatebps();
+// 		    mode = 2;
+// 	          }
+// 	        else
+// 	          {
+// 		    rate_bps = aWifiDev->GetRatebps();
+// 		    mode = 1;
+// 	          }
+// 	        m_TxData(qHeader, qPacket, aDev->GetIfIndex ()); 
+// 	        m_TxDataAir(qPacket, qHeader,rate_bps, mode);	  
+//                 rtentry->SetSource(qHeader.GetSource());
+//                 rtentry->SetDestination(qHeader.GetDestination());
+//                 qucb (rtentry, qPacket, qHeader);
+// 		
+// 	      }
+// 	    else
+// 	      {
+// 	        std::cout<<"Desencolo para nada"<<std::endl;
+// 	      }
+//           }
+//         else
+//           {
+// 	    //if not, we will enqueue this packet at the beginning of the other queue
+// 	    //std::cout<<"TxOpportunity, la ruta se cambia y se tx por el otro interfaz"<<std::endl;
+// 	    if (anEntry.requeued==0 || anEntry.requeued==2)
+// 	      {
+// 	        bool requeue_the_packet = m_queuedData->Dequeue(anEntry, queue_woke_interface);
+// 	        if (requeue_the_packet)
+// 	        {
+// 	          anEntry.requeued = 1;
+// 	          QueueData(anEntry.GetPacket(), anEntry.GetHeader(),hwAddr, anEntry.GetUcb(), iface, requeue_the_packet, anEntry.GetTstamp()); 
+// 	        }  
+// 	      else
+// 	        return;
+// 	      }
+// 	    else
+// 	      return;	    
+//           }
+//       }        
+//   } //end if !the_nh.IsEqual("127.0.0.1")
 }
 
 void
@@ -573,8 +610,8 @@ RoutingProtocol::FireTxOpportunities (uint32_t iface)
       if (i != iface)
       {
         Ptr<PointToPointNetDevice> dev = m_ipv4->GetNetDevice(i)->GetObject<PointToPointNetDevice>();
-        //if (dev && dev->IsReadyTx())
-	if (dev)
+        if (dev && dev->IsReadyTx())
+	//if (dev)
           {
 	    Address mac = m_ipv4->GetNetDevice(i)->GetAddress();
 	    TxOpportunity(mac);
@@ -1166,9 +1203,9 @@ void RoutingProtocol::DoInitialize ()
     }
   //std::cout<<"Node "<<m_ipv4->GetObject<Node>()->GetId()<<" has "<<m_arrays<<" arrays"<<std::endl;
 #ifndef GRID_MULTIRADIO_MULTIQUEUE
-  //m_queuedData->SetMaxSize(m_maxQueueLen*interfaces);
+  m_queuedData->SetMaxSize(m_maxQueueLen*interfaces);
   //test multiradio wifi-SI-ad-hoc (SI:special issue). In SANSA, only one queue per node 
-    m_queuedData->SetMaxSize(m_maxQueueLen);
+  //  m_queuedData->SetMaxSize(m_maxQueueLen);
 #endif
      
   if (m_mainAddress == Ipv4Address ())
@@ -1699,6 +1736,14 @@ RoutingProtocol::SendQueuedData (Ptr<Ipv4Route> theRoute)
           theRoute->SetSource(qHeader.GetSource());
           theRoute->SetDestination(qHeader.GetDestination());
           qucb (theRoute, qPacket, qHeader);
+		  ///checking the histeresis
+          if (m_histeresis[direction])
+            {
+              if (m_queuedData->GetIfaceSize(direction) < (5/10)*(m_queuedData->GetMaxSize()))
+                {
+                    m_histeresis[direction] = false;
+                }
+            }
         }
     }
   else
@@ -2209,7 +2254,6 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
     }
   uint32_t check_requeue=0;
   bool SatFlow = false;
-  bool FastTx = false;
  
   ///INSERTING THE PACKET IN A QUEUE
   Ipv4Address the_nh("127.0.0.1");  //Initialize next hop
@@ -2269,26 +2313,8 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
 	      buf[3]=buf[3]-1;
 	      Ipv4Address tmp_addr= Ipv4Address::Deserialize(buf);
 	      queue_iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
-	      //std::cout<<"Paquete con (src,dst,s_port,d_port) ("<<srcAddr<<","<<dstAddr<<","<<s_port<<","<<d_port<<") se encola en nodo "<<m_ipv4->GetObject<Node>()->GetId()-1<<"en cola: "<<queue_iface<<std::endl;
-	      FastTx = true;
 	    }
-	  else if ( (m_state.GetTerrGwNodeValue() && !SatFlow ) || (m_ipv4->GetObject<Node>()->GetId() == (NodeList::GetNNodes()-1)) )
-	    { //it is a terrestrial node connected to epc or the satellite node connected to the epc and ul traffic
-	      //packet is not deencapsulated and we can do fast transmission
-	      Ptr<Node> node = NodeList::GetNode(0);
-	      Ipv4Address tmp_addr = node->GetObject<Ipv4>()->GetAddress(3,0).GetLocal();
-	      if (dstAddr.IsEqual(tmp_addr))
-	      { 
-		the_nh = dstAddr;
-		uint8_t buf[4];
-		the_nh.Serialize(buf);
-		buf[3]=buf[3]-1;
-		tmp_addr = Ipv4Address::Deserialize(buf);
-		queue_iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
-		FastTx = true;
-	      }
-	    }
-          else
+	  else
 	    { //not in EPC, not in a TerrGw, or in EPC but DL traffic
 	      if (LocationList::m_SatGws.size()>0)
 	        { //the aim of this if is to change the dstAddr when required
@@ -2343,27 +2369,7 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
   
   ///(queue_iface-1) to access the proper element in the vector of queues in no longer valid
   ///with the idea of 11/11/15. queue_iface should correspond to the number of the iface
-  QueueData(p,header, hwAddr, ucb,queue_iface,check_requeue,Simulator::Now());
-  
-  if (FastTx)
-    { //UL traffic and we are at EPC
-      Ptr<PointToPointNetDevice> dev = m_ipv4->GetNetDevice(queue_iface)->GetObject<PointToPointNetDevice>();
-      if (dev && dev->IsReadyTx())
-        {
-	   //std::cout<<"Fast Tx. IP: "<<m_ipv4->GetAddress(1,0).GetLocal()<<"and queue_iface: "<<queue_iface<<"time: "<<Simulator::Now()<<std::endl;
-	   //Address mac = m_ipv4->GetNetDevice(queue_iface)->GetAddress();
-	   //TxOpportunity (mac);
-	   Ptr<Ipv4Route> rtentry;
-	   rtentry = Create<Ipv4Route>();
-	   rtentry->SetDestination (dstAddr);
-	   Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (queue_iface,0);
-	   rtentry->SetSource (oifAddr.GetLocal());
-	   rtentry->SetGateway (dstAddr);
-	   rtentry->SetOutputDevice(m_ipv4->GetNetDevice(queue_iface));
-	   SendQueuedData(rtentry);	   
-        }
-    }
-  
+  QueueData(p,header, hwAddr, ucb,queue_iface,check_requeue,Simulator::Now()); 
   //TSTAMP DISCIPLINE: FIFO TIME DISCIPLINE, we want to process the packet which has spent more time in the queues
   uint32_t index = 100; //dummy initialization to check that the node is empty
   bool packet_read= false;
@@ -2520,20 +2526,6 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
 		  Ipv4Address tmp_addr= Ipv4Address::Deserialize(buf);
 		  iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
 	        }
-	      else if ((m_state.GetTerrGwNodeValue() && !SatFlow ) || (m_ipv4->GetObject<Node>()->GetId() == (NodeList::GetNNodes()-1)) )
-	        { //do not compute anything because next hop is EPC
-		   Ptr<Node> node = NodeList::GetNode(0);
-		   Ipv4Address tmp_addr = node->GetObject<Ipv4>()->GetAddress(3,0).GetLocal();
-		   if (dstAddr.IsEqual(tmp_addr))
-		     {
-		       the_nh = dstAddr;
-		       uint8_t buf[4];
-		       the_nh.Serialize(buf);
-		       buf[3]=buf[3]-1;
-		       Ipv4Address tmp_addr= Ipv4Address::Deserialize(buf);
-		       iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
-		     }
-	        }
 	      else
 	        {
 		  if (LocationList::m_SatGws.size()>0)
@@ -2572,6 +2564,7 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
 			      ///new function to determine next hop in multi-radio
 		              ///the_nh = m_state.FindNextHopBackpressureCentralizedGridSANSALena(ifAddr.GetLocal(), srcAddr, dstAddr, v, iface, m_ipv4, hwAddr, erased, prev_nh, SatFlow);
 			      the_nh = m_state.FindNextHopBackpressureCentralizedGridSANSALenaMR(ifAddr.GetLocal(), srcAddr, dstAddr, v, iface, output_interface, m_ipv4, hwAddr, erased, prev_nh, SatFlow);
+			      //std::cout<<"The next hop for a SatFlow packet "<<d_port<<" is: "<<the_nh<<std::endl;
 			    }
 			  else
 			    {
@@ -3232,17 +3225,23 @@ RoutingProtocol::SetNodeDown ()
 {
   // TODO: Tx Everything before switching OFF the node Proactively Update Routing Tables given the new state"
   // Prior to shutting down the node we should empty queues
-  for (uint32_t j=1; j<m_ipv4->GetNInterfaces();j++)
+  uint32_t i=1;
+  if (m_ipv4->GetObject<Node>()->GetId() == 0)
+    i=2;
+  for (uint32_t j=i; j<m_ipv4->GetNInterfaces();j++)
     {
       m_ipv4->SetDown(j);
     }
 }
 
-//set al the backhaul interfaces up
+//set all the backhaul interfaces up
 void
 RoutingProtocol::SetNodeUp ()
 {
-  for (uint32_t j; j<m_ipv4->GetNInterfaces(); j++)
+  uint32_t i=1;
+  if (m_ipv4->GetObject<Node>()->GetId() == 0)
+    i=2;
+  for (uint32_t j=i; j<m_ipv4->GetNInterfaces(); j++)
     {
       m_ipv4->SetUp(j);
     }
@@ -3602,6 +3601,19 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
   //uint32_t useful_neighbor= 50;
   NeighborSet neighbor= m_state.GetNeighbors();
   bool penalty;
+  uint32_t count_closer=0;
+  
+  /*for (NeighborSet::iterator it = neighbor.begin(); it!=neighbor.end(); it++)
+    {
+      uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr,SatFlow);
+      if (IsValidNeighborSANSA( it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue()))
+        {
+	  if (HopsFromCurr > HopsNeigh)
+	    {
+	      count_closer++;
+	    }
+        }
+    }*/
   
   for (NeighborSet::iterator it = neighbor.begin();
        it != neighbor.end(); it++)
@@ -3628,7 +3640,10 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
       distances.push_back(HopsFromNeigh);
       if (HopsFromNeigh >= HopsFromCurr)
         {
-	  penalty = true; //Neighbor is farther from the destination penalice decissions
+	  if (count_closer == 0)
+	    penalty = false; //reward decision because there is no other closer
+	  else
+	    penalty = true; //Neighbor is farther or equal from the destination penalice decissions
         }
       else
         {
@@ -3799,6 +3814,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
       { 
 	//initial: only the following line and commenting the other code
 	output_interface = theNeighGoodWeight[0]->interface;
+///original histeresis code	
 	/*uint32_t selected_eth = theNeighGoodWeight[0]->interface;
 	if (m_queuedData->GetIfaceSize(selected_eth) < (m_queuedData->GetMaxSize()*3/4) && (!m_histeresis[selected_eth]))
 	  { //original m_queuedData->GetMaxSize()/2
@@ -3828,7 +3844,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
 	      }
 	    else
 	      { //there is not a useful neighbor (one closer)
-		m_histeresis[selected_eth]=false;
+		///m_histeresis[selected_eth]=false;
 		output_interface = theNeighGoodWeight[0]->interface;
 	      }
 	  }*/
@@ -3843,7 +3859,7 @@ RoutingProtocol::MapMACAddressToIPinterface(Address MAC, uint32_t &interface)
   uint32_t tmp=0;
   interface = 0;
   Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
-  while (tmp != theNode->GetNDevices()-1)
+  while (tmp != theNode->GetNDevices())
     {
       if (theNode->GetDevice(tmp)->GetAddress() == MAC)
        {

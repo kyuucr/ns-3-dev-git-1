@@ -563,29 +563,28 @@ BackpressureState::CalculatePenaltyNeighGridSANSA_v2(Ptr<Ipv4> m_ipv4, uint32_t 
   for (NeighborSet::iterator it = m_neighborSet.begin();//detect whether neighbor closer is OFF or not
        it != m_neighborSet.end(); it++)
     {
-      
       uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
       //if ((now.GetSeconds()-it->lastHello.GetSeconds())<1.0)
       if (IsValidNeighborSANSA( m_ipv4 ,it->lastHello, it->interface, SatFlow))
-      { //ALIVE neighbor
+        { //ALIVE neighbor
 	 //uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
 	 //if (HopsFromCurr>=HopsNeigh)
-	 if (HopsFromCurr> HopsNeigh)
-            {
-              count_closer++;    
-              if (from == it->neighborhwAddr)
-	        {
-                  closer_is_loop=true;
-                }
-              any_closer_on=true;
-            }
-      }
+	   if (HopsFromCurr> HopsNeigh)
+             {
+                count_closer++;    
+                if (from == it->neighborhwAddr)
+	          {
+                    closer_is_loop=true;
+                  }
+                any_closer_on=true;
+             }
+         }
     }
  
 
   float penalty;
-  //if (HopsFromNeigh >= HopsFromCurr)
-  if (HopsFromNeigh > HopsFromCurr)
+  if (HopsFromNeigh >= HopsFromCurr)
+  //if (HopsFromNeigh > HopsFromCurr)
     {//the neighbor is farther or equal from destination
       if ( (!any_closer_on) )
         {
@@ -1330,9 +1329,8 @@ BackpressureState::GetRate(uint32_t anode,Ipv4Address neighAddr,Ptr<Ipv4> m_ipv4
   Ptr<NetDevice> aDev= m_ipv4->GetNetDevice(interface);
   Ptr<PointToPointNetDevice> aPtopDev = aDev->GetObject<PointToPointNetDevice> ();
   Ptr<WifiNetDevice> aWifiDev = aDev->GetObject<WifiNetDevice> ();
-  //Ptr<PointToPointNetDevice> aPtopDev = (m_ipv4->GetNetDevice(interface))->GetObject<PointToPointNetDevice> ();*/
-  uint64_t rate_bps;
-  if (aWifiDev ==NULL)
+    uint64_t rate_bps;
+  if (aWifiDev == NULL)
     {//ppp device
       rate_bps = aPtopDev->GetRatebps();
     }
