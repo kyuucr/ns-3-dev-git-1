@@ -2270,7 +2270,7 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
 	      Ipv4Address tmp_addr= Ipv4Address::Deserialize(buf);
 	      queue_iface = m_ipv4->GetInterfaceForAddress(tmp_addr);
 	      //std::cout<<"Paquete con (src,dst,s_port,d_port) ("<<srcAddr<<","<<dstAddr<<","<<s_port<<","<<d_port<<") se encola en nodo "<<m_ipv4->GetObject<Node>()->GetId()-1<<"en cola: "<<queue_iface<<std::endl;
-	      //FastTx = true;
+	      FastTx = true;
 	    }
 	  else if ( (m_state.GetTerrGwNodeValue() && !SatFlow ) || (m_ipv4->GetObject<Node>()->GetId() == (NodeList::GetNNodes()-1)) )
 	    { //it is a terrestrial node connected to epc or the satellite node connected to the epc and ul traffic
