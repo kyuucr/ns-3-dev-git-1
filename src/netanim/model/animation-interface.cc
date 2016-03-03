@@ -51,6 +51,13 @@
 #include "ns3/ipv4-routing-protocol.h"
 #include "ns3/energy-source-container.h"
 #include "ns3/point-to-point-net-device.h"
+#include "ns3/backpressure.h"
+
+// include headers
+#include "ns3/udp-header.h"
+#include "ns3/tcp-header.h"
+#include "ns3/epc-gtpu-header.h"
+#include "ns3/ppp-header.h"
 
 namespace ns3 {
 
@@ -577,7 +584,7 @@ AnimationInterface::LinkAutoCheck ()
   if (!Simulator::IsFinished () )
     {
       //do we need to purge pendingPackets??
-      Simulator::Schedule (3*m_mobilityPollInterval, &AnimationInterface::LinkAutoCheck, this);
+      Simulator::Schedule (m_mobilityPollInterval, &AnimationInterface::LinkAutoCheck, this);
     }
 }
 
@@ -887,6 +894,100 @@ AnimationInterface::DevTxTrace (std::string context,
              fbRx, 
              lbRx, 
              m_enablePacketMetadata ? GetPacketMetadata (p) : "");
+}
+
+void
+AnimationInterface::GetSourceAndDestinationPort (Ptr<const Packet> packet, uint16_t &s_port, uint16_t &d_port)
+{
+  Ptr<Packet> currentPacket = packet->Copy();
+  //this is a ppp protocol packet in sansa so it has to be gtp encapsulated
+  PppHeader hdrPpp;
+  currentPacket->RemoveHeader(hdrPpp);
+  //uint16_t proto = hdrPpp.GetProtocol();
+  Ipv4Header ipHeader;
+  currentPacket->RemoveHeader(ipHeader);
+  UdpHeader udph;
+  currentPacket->RemoveHeader(udph);
+  s_port = udph.GetSourcePort();
+  d_port = udph.GetDestinationPort();
+  if (s_port == 2152 && d_port == 2152)
+    { //this a GTP tunnelling transmission
+      //std::cout<<"entro en la encap gtp"<<std::endl;
+        GtpuHeader gtph;
+      currentPacket->RemoveHeader(gtph);
+      //right now we have to see which is the protocol beneath
+      Ipv4Header header;
+      currentPacket->RemoveHeader(header);    
+      switch (header.GetProtocol())
+        {
+	  case TCP_PROT_NUMBER:
+	    {
+	      //TCP case get source, dst port
+              TcpHeader tcph;
+              currentPacket->RemoveHeader(tcph);
+              s_port = tcph.GetSourcePort();
+              d_port = tcph.GetDestinationPort();
+            }
+	    break;
+	  case UDP_PROT_NUMBER:
+            {
+              UdpHeader udph;
+              currentPacket->RemoveHeader(udph);
+              s_port = udph.GetSourcePort();
+              d_port = udph.GetDestinationPort();
+            }
+	    break;
+	  default:
+            {
+	      NS_LOG_UNCOND("Protocol unrecognized AnimationInterface");
+	     }
+        }
+    }
+}
+
+void 
+AnimationInterface::DevTxTraceSansa (std::string context, 
+                                     Ptr<const Packet> p,
+                                     Ptr<NetDevice> tx, 
+                                     Ptr<NetDevice> rx,
+                                     Time txTime, 
+                                     Time rxTime)
+{
+  if (!m_started || !IsInTimeWindow () || !m_trackPackets)
+    return;
+  NS_ASSERT (tx);
+  NS_ASSERT (rx);
+  Time now = Simulator::Now ();
+  double fbTx = now.GetSeconds ();
+  double lbTx = (now + txTime).GetSeconds ();
+  double fbRx = (now + rxTime - txTime).GetSeconds ();
+  double lbRx = (now + rxTime).GetSeconds ();
+  CheckMaxPktsPerTraceFile ();
+  bool SatFlow= false;
+  if (m_SatGws > 0 )
+    {
+      uint16_t s_port=999, d_port=999;
+      GetSourceAndDestinationPort(p, s_port, d_port);
+      //std::cout<<"el s_port: "<<s_port<<"el d_port: "<<d_port<<std::endl;
+      uint16_t ref_port=1; //by default through the terrestrial
+      if (d_port > 10000)
+        ref_port = s_port;
+      else
+	ref_port = d_port;
+      if (ref_port%2==0)
+        SatFlow = true;
+    }
+  if (SatFlow)
+    {
+      WriteXmlP ("p", tx->GetNode ()->GetId (), fbTx, lbTx, rx->GetNode ()->GetId (), 
+             fbRx, lbRx, "satellite"); 
+    }
+  else
+    {
+        WriteXmlP ("p", tx->GetNode ()->GetId (), fbTx, lbTx, rx->GetNode ()->GetId (), 
+             fbRx, lbRx, "terrestrial");
+    }
+  
 }
 
 void 
@@ -1437,9 +1538,9 @@ AnimationInterface::StartAnimation (bool restart)
   if (m_enodeBs > 0)
     {
       //adding resources for images
-      uint32_t satellite = AddResource ("/home/jbaranda/CTTC/IP_Projects/Routing/H2020_SANSA_code/ns-3-dev/satellite.png");
-      uint32_t epc = AddResource ("/home/jbaranda/CTTC/IP_Projects/Routing/H2020_SANSA_code/ns-3-dev/epc.png");
-      uint32_t remote = AddResource ("/home/jbaranda/CTTC/IP_Projects/Routing/H2020_SANSA_code/ns-3-dev/remote.png");
+      uint32_t satellite = AddResource ("/home/jbaranda/CTTC/PROJECTS/SANSA/ns-3_sharedka/satellite.png");
+      uint32_t epc = AddResource ("/home/jbaranda/CTTC/PROJECTS/SANSA/ns-3_sharedka/epc.png");
+      uint32_t remote = AddResource("/home/jbaranda/CTTC/PROJECTS/SANSA/ns-3_sharedka/remote.png");
       if (m_SatGws > 0 )
         {
           UpdateNodeImage (NodeList::GetNNodes ()-1,satellite);
@@ -1449,7 +1550,7 @@ AnimationInterface::StartAnimation (bool restart)
     }
   WriteNodeSizes ();
   WriteNodeEnergies ();
-  SetBackgroundImage ("/home/jbaranda/CTTC/IP_Projects/Routing/H2020_SANSA_code/ns-3-dev/logo-sansa.png", 300, 200, 0.3, 0.3, 1.0);
+  SetBackgroundImage ("/home/jbaranda/CTTC/PROJECTS/SANSA/ns-3_sharedka/logo-sansa.png", 235, -50, 0.3, 0.3, 1.0);
   /*if (m_enodeBs > 0)
     {
       //adding resources for images
@@ -1464,7 +1565,7 @@ AnimationInterface::StartAnimation (bool restart)
     {
       Simulator::Schedule (m_mobilityPollInterval, &AnimationInterface::MobilityAutoCheck, this);
       //check the link each 0.75 seconds
-      Simulator::Schedule (3*m_mobilityPollInterval, &AnimationInterface::LinkAutoCheck, this);
+      Simulator::Schedule (m_mobilityPollInterval, &AnimationInterface::LinkAutoCheck, this);
       ConnectCallbacks ();
     }
 }
@@ -1555,8 +1656,13 @@ void
 AnimationInterface::ConnectCallbacks ()
 {
   // Connect the callbacks
+#ifdef GRID_MULTIRADIO_MULTIQUEUE
+  Config::Connect ("/ChannelList/*/TxRxPointToPoint",
+                   MakeCallback (&AnimationInterface::DevTxTraceSansa, this));
+#else    
   Config::Connect ("/ChannelList/*/TxRxPointToPoint",
                    MakeCallback (&AnimationInterface::DevTxTrace, this));
+#endif
   Config::Connect ("NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin",
                    MakeCallback (&AnimationInterface::WifiPhyTxBeginTrace, this));
   Config::Connect ("NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxBegin",

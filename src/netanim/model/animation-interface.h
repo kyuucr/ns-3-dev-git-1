@@ -45,7 +45,7 @@
 
 namespace ns3 {
 
-#define MAX_PKTS_PER_TRACE_FILE 100000
+#define MAX_PKTS_PER_TRACE_FILE 2000000
 #define PURGE_INTERVAL 5
 #define NETANIM_VERSION "netanim-3.106"
 
@@ -721,6 +721,14 @@ private:
                    Ptr<NetDevice> rx,
                    Time txTime,
                    Time rxTime);
+  void GetSourceAndDestinationPort (Ptr<const Packet> packet, uint16_t &s_port, uint16_t &d_port);
+  void DevTxTraceSansa (std::string context,
+                   Ptr<const Packet> p,
+                   Ptr<NetDevice> tx,
+                   Ptr<NetDevice> rx,
+                   Time txTime,
+                   Time rxTime);
+  
   void WifiPhyTxBeginTrace (std::string context,
                             Ptr<const Packet> p);
   void WifiPhyRxBeginTrace (std::string context,
