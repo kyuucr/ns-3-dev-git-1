@@ -115,6 +115,8 @@ public:
   void QueueTx();
   void QueueTxPtoP(Address);
   void TxOpportunity(Address);
+  ///fire txopportunities if possible
+  void FireTxOpportunities (uint32_t iface);
   uint32_t GetDataQueueSize();
   uint32_t GetDataQueueSizePrev();
   uint32_t GetVirtualDataQueueSize(uint8_t);
@@ -318,7 +320,6 @@ private:
   void GetSourceAndDestinationPort(Ipv4Header header, Ptr<Packet> packet, uint16_t &s_port, uint16_t &d_port);
   ///Determine if a neighbor is valid or not in the SANSA scenario
   bool IsValidNeighborSANSA (Time lastHello, uint32_t interface, bool SatFlow, bool SatNode);
-  
 
   Ipv4Address m_mainAddress;
 

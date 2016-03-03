@@ -340,6 +340,8 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           /*NodeContainer enbSgwNodes;
           enbSgwNodes.Add (m_sgwPgw);
           enbSgwNodes.Add (enb);*/
+	  DataRate rate(1000000*1000); //1Gbps connection with nodes connecting to the epc
+	  p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (rate));
 	  p2phterr.SetChannelAttribute ("Delay", TimeValue (Seconds(0.0005))); //100km
 	  NetDeviceContainer enbSgwDevices = p2phterr.Install (enb, m_sgwPgw);
           NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<<enb->GetId()-1<<" after installing p2p dev: " << enb->GetObject<Ipv4> ()->GetNInterfaces ());  
@@ -422,6 +424,8 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
        enbSgwNodes.Add (m_sgwPgw);
        Ptr<Node> enb = enbs.Get(numberEnodeBs);
        enbSgwNodes.Add (enb);
+       DataRate rate(1000000*1000); //1Gbps connection with nodes connecting to the epc
+       p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (rate));
        NetDeviceContainer enbSgwDevices = p2phterr.Install (enb, m_sgwPgw);
        NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<<enb->GetId()-1<<" after installing p2p dev: " << enb->GetObject<Ipv4> ()->GetNInterfaces ());  
        Ptr<NetDevice> enbDev = enbSgwDevices.Get (0);
@@ -453,7 +457,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
   NS_LOG_INFO ("Create Links Between Terrestrial Mesh Nodes.");
 
   uint32_t linkCount = 0;
-  
+  p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (m_s1uLinkDataRateTerrestrial));
   for (size_t i = 0; i < terrestrialConMatrix.size (); i++)
     {
       for (size_t j = 0; j < terrestrialConMatrix[i].size (); j++)
@@ -474,34 +478,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
               NS_LOG_INFO (" eNB "<< i <<" connected to eNB "<< j);
       	      NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<< i << " after assigning Ipv4 addr to S1 dev: " << enbs.Get(i)->GetObject<Ipv4> ()->GetNInterfaces ());
       	      NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<< j << " after assigning Ipv4 addr to S1 dev: " << enbs.Get(j)->GetObject<Ipv4> ()->GetNInterfaces ());
-              linkCount++;
-	      /*if (terrestrialConMatrix[i][j]==1)
-	        {
-		  //do not do anything, interfaces are up by default
-                  //NS_LOG_INFO ("matrix element [" << i << "][" << j << "] is 1");
-                }
-	      else if (terrestrialConMatrix[i][j]==2 || terrestrialConMatrix[i][j]==3)
-	        { 
-		  uint32_t interface;
-		  Ptr<PointToPointNetDevice> pTop = n_devs.Get(0)->GetObject<PointToPointNetDevice>();
-		  if (pTop!=NULL)
-		    {
-		      interface= pTop->GetIfIndex();
-		      if (terrestrialConMatrix[i][j] ==2)
-		        enbs.Get(i)->GetObject<Ipv4>()->SetDown(interface);
-		      m_info_interfaces.insert(std::make_pair(enbs.Get(i)->GetId(), std::make_pair(interface,terrestrialConMatrix[i][j])));
-		    }
-		  pTop = n_devs.Get(1)->GetObject<PointToPointNetDevice>();
-		  if (pTop!=NULL)
-		    {
-		      interface= pTop->GetIfIndex();
-		      if (terrestrialConMatrix[i][j] ==2)
-		        enbs.Get(j)->GetObject<Ipv4>()->SetDown(interface);
-		      m_info_interfaces.insert(std::make_pair(enbs.Get(j)->GetId(), std::make_pair(interface,terrestrialConMatrix[i][j])));
-		    }
-		  //NS_LOG_INFO ("matrix element [" << i << "][" << j << "] is 2");
-	        }*/
-	      
+              linkCount++;  
 	      uint32_t interface;
 	      Ptr<PointToPointNetDevice> pTop = n_devs.Get(0)->GetObject<PointToPointNetDevice>();
               Ptr<backpressure::RoutingProtocol> bpN;
@@ -592,6 +569,8 @@ MeshEpcHelper::AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector
           // create a point to point link between the new eNB and the SGW with
           // the corresponding new NetDevices on each side  
 	  p2phterr.SetChannelAttribute ("Delay", TimeValue (Seconds(0.0005))); //100km
+	  DataRate rate(1000000*1000); //1Gbps connection with nodes connecting to the epc
+          p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (rate));
   	  NetDeviceContainer enbSgwDevices = p2phterr.Install (enb, m_sgwPgw);
           //NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<<enb->GetId()-1<<" after installing p2p dev: " << enb->GetObject<Ipv4> ()->GetNInterfaces ());  
           Ptr<NetDevice> enbDev = enbSgwDevices.Get (0);
@@ -667,6 +646,8 @@ MeshEpcHelper::AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector
        enbSgwNodes.Add (m_sgwPgw);
        Ptr<Node> enb = enbs.Get(numberEnodeBs);
        enbSgwNodes.Add (enb);
+       DataRate rate(1000000*1000); //1Gbps connection with nodes connecting to the epc
+       p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (rate));
        NetDeviceContainer enbSgwDevices = p2phterr.Install (enb, m_sgwPgw);
        //NS_LOG_INFO ("number of Ipv4 ifaces of the eNB "<<enb->GetId()-1<<" after installing p2p dev: " << enb->GetObject<Ipv4> ()->GetNInterfaces ());  
        Ptr<NetDevice> enbDev = enbSgwDevices.Get (0);
@@ -698,7 +679,7 @@ MeshEpcHelper::AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector
   NS_LOG_INFO ("Create Links Between Terrestrial Mesh Nodes.");
 
   uint32_t linkCount = 0;
-  
+  p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (m_s1uLinkDataRateTerrestrial));
   for (size_t i = 0; i < terrestrialConMatrix.size (); i++)
     {
       for (size_t j = 0; j < terrestrialConMatrix[i].size (); j++)

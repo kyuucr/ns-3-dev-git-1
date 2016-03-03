@@ -156,8 +156,11 @@ public:
   
   void SetSatNodeValue(bool value);
   bool GetSatNodeValue ();
+  void SetTerrGwNodeValue(bool value);
+  bool GetTerrGwNodeValue ();
   bool IsValidNeighborSANSA(Ptr<Ipv4> m_ipv4, Time lastHello, uint32_t interface, bool SatFlow);
   bool m_SatNode;
+  bool m_TerrGwNode;
   
   
 };

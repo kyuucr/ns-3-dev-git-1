@@ -565,11 +565,12 @@ BackpressureState::CalculatePenaltyNeighGridSANSA_v2(Ptr<Ipv4> m_ipv4, uint32_t 
     {
       
       uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
-       if ((now.GetSeconds()-it->lastHello.GetSeconds())<1.0)
-      //if (IsValidNeighborSANSA( m_ipv4 ,it->lastHello, it->interface, SatFlow))
+      //if ((now.GetSeconds()-it->lastHello.GetSeconds())<1.0)
+      if (IsValidNeighborSANSA( m_ipv4 ,it->lastHello, it->interface, SatFlow))
       { //ALIVE neighbor
 	 //uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
-	 if (HopsFromCurr>=HopsNeigh)
+	 //if (HopsFromCurr>=HopsNeigh)
+	 if (HopsFromCurr> HopsNeigh)
             {
               count_closer++;    
               if (from == it->neighborhwAddr)
@@ -583,7 +584,8 @@ BackpressureState::CalculatePenaltyNeighGridSANSA_v2(Ptr<Ipv4> m_ipv4, uint32_t 
  
 
   float penalty;
-  if (HopsFromNeigh >= HopsFromCurr)
+  //if (HopsFromNeigh >= HopsFromCurr)
+  if (HopsFromNeigh > HopsFromCurr)
     {//the neighbor is farther or equal from destination
       if ( (!any_closer_on) )
         {
@@ -2724,6 +2726,18 @@ bool
 BackpressureState::GetSatNodeValue ()
 {
   return m_SatNode;
+}
+
+void
+BackpressureState::SetTerrGwNodeValue (bool value)
+{
+  m_TerrGwNode = value;
+}
+
+bool 
+BackpressureState::GetTerrGwNodeValue ()
+{
+  return m_TerrGwNode;
 }
 
 } // namespace ns3
