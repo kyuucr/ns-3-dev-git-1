@@ -3598,12 +3598,12 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
   //second: obtain the proper distances of the neighbors
   uint32_t eqNeighs = 0;				        	// Number of neighs with same queue length size 
   uint32_t neighbor_index = 0;
-  //uint32_t useful_neighbor= 50;
+  uint32_t useful_neighbor= 50;
   NeighborSet neighbor= m_state.GetNeighbors();
   bool penalty;
   uint32_t count_closer=0;
   
-  /*for (NeighborSet::iterator it = neighbor.begin(); it!=neighbor.end(); it++)
+  for (NeighborSet::iterator it = neighbor.begin(); it!=neighbor.end(); it++)
     {
       uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr,SatFlow);
       if (IsValidNeighborSANSA( it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue()))
@@ -3613,7 +3613,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
 	      count_closer++;
 	    }
         }
-    }*/
+    }
   
   for (NeighborSet::iterator it = neighbor.begin();
        it != neighbor.end(); it++)
@@ -3678,7 +3678,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
              theNeighGoodWeight.push_back(&(*it));
 	     eqNeighs++;
 	     //this variable will be used when only one neighbor
-	     //useful_neighbor = neighbor_index;
+	     useful_neighbor = neighbor_index;
 	  }
         else
 	 {
@@ -3815,7 +3815,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
 	//initial: only the following line and commenting the other code
 	output_interface = theNeighGoodWeight[0]->interface;
 ///original histeresis code	
-	/*uint32_t selected_eth = theNeighGoodWeight[0]->interface;
+	uint32_t selected_eth = theNeighGoodWeight[0]->interface;
 	if (m_queuedData->GetIfaceSize(selected_eth) < (m_queuedData->GetMaxSize()*3/4) && (!m_histeresis[selected_eth]))
 	  { //original m_queuedData->GetMaxSize()/2
 	    //std::cout<<"El ttl_3 es: "<<(int32_t)ttl<<" el vecino es: "<<theNeighSameWeight[0]->theMainAddr<<"("<<theNeighSameWeight[0]->interface<<") y la destination address: "<<dstAddr<<", la interface: "<<theNeighSameWeight[0]->interface<<std::endl;
@@ -3847,7 +3847,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
 		///m_histeresis[selected_eth]=false;
 		output_interface = theNeighGoodWeight[0]->interface;
 	      }
-	  }*/
+	  }
       }  
     return output_interface;    
 }
