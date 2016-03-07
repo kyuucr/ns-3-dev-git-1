@@ -4045,7 +4045,17 @@ RoutingProtocol::AlternativeIfaceSelectionSANSA (Ptr<Ipv4> m_ipv4, uint32_t usef
 	  if (index !=20)
 	    return candidates_good[index]->interface;
 	  else
-	    return candidates_bad[0]->interface;
+     {
+       if (candidates_bad.size() == 0)
+         {
+           return candidates_good[0]->interface;
+         }
+       else
+         {
+           return candidates_bad[0]->interface;
+         }
+     }
+
       }
 }
 
