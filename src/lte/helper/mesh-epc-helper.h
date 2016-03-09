@@ -56,7 +56,7 @@ class EpcMme;
 class MeshEpcHelper : public EpcHelper
 {
 public:
-  
+
   /** 
    * Constructor
    */
@@ -64,9 +64,9 @@ public:
 
   /** 
    * Destructor
-   */  
+   */
   virtual ~MeshEpcHelper ();
-  
+
   // inherited from Object
   /**
    *  Register this type.
@@ -85,14 +85,14 @@ public:
   virtual Ipv4Address GetUeDefaultGatewayAddress ();
 
   // creation of mesh topology amongst enbs and satellite nodes
-  void AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix, std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat, Ipv4ListRoutingHelper routingList/*NodeContainer satellites*/);
-  void AddHybridMeshBackhaul(NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix, std::vector<std::vector<int> > terrestrialLinkRateMatrix, std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat, Ipv4ListRoutingHelper routingList);
+  void AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix, std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat, Ipv4ListRoutingHelper routingList /*NodeContainer satellites*/);
+
   static void TraceAndDebug (Ptr<NetDevice> first, Ptr<NetDevice> second);
   //Variable to store the type of link (fix or smart) in the backhaul and its state
   //std::multimap<int, std::pair<int, int> > m_info_interfaces;
   //-->we will store directly this information in the routing element (backpressure) to have available this information 
   //in routing time
-  
+
 
 private:
 
@@ -100,7 +100,7 @@ private:
    * helper to assign addresses to UE devices as well as to the TUN device of the SGW/PGW
    */
   Ipv4AddressHelper m_ueAddressHelper; 
-  
+
   /**
    * SGW-PGW network element
    */
@@ -160,11 +160,11 @@ private:
    * Map storing for each IMSI the corresponding eNB NetDevice
    */
   std::map<uint64_t, Ptr<NetDevice> > m_imsiEnbDeviceMap;
-  
+
   /** 
    * helper to assign addresses to X2 NetDevices 
    */
-  Ipv4AddressHelper m_x2Ipv4AddressHelper;   
+  Ipv4AddressHelper m_x2Ipv4AddressHelper;
 
   /**
    * The data rate to be used for the next X2 link to be created
@@ -181,13 +181,13 @@ private:
    * because of some big X2 messages, you need a big MTU.
    */
   uint16_t m_x2LinkMtu;
-  
+
   /**
    * The value of PER and delay (seconds) of the different link 
    * in the network. Added statically in the c-tor but assigned
    * randomly when generating the topology
    */
-    
+
   std::vector<std::pair<double, double> > m_channelModels;
   std::vector<RateErrorModel> m_vecErrorModel;
 
