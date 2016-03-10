@@ -317,7 +317,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
   ///Determining the next-hop and the iface
   Ptr<Node> theNode = m_ipv4->GetObject<Node> ();
   uint8_t ttl = anEntry.GetHeader().GetTtl();
-  uint32_t v=200;
+  uint32_t v=m_weightV;
   VcalcTimerExpire (woke_interface, m_requeue_loop);
   v=m_weightV;
   if (m_variant == BACKPRESSURE_CENTRALIZED_PACKET || m_variant == BACKPRESSURE_CENTRALIZED_FLOW) 
@@ -2417,7 +2417,7 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
    
   ///ROUTING DECISION: only backpressure for the moment
    
-   uint32_t v=200;
+   uint32_t v=m_weightV;
    VcalcTimerExpire (output_interface, m_requeue_loop); 
    //the output_interface and the m_requeue_loop variables are not needed in the Vcalc process
    
