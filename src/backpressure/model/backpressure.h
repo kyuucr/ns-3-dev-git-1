@@ -135,6 +135,8 @@ public:
   void SetInfoInterfaces (int iface_id, int value);
   ///Reallocate the packets that are in the buffer of a antenna that is going to be switch off
   void ReallocatePackets(uint32_t interface);
+
+  void SetSatInterface (uint32_t iface);
   
   //virtual void DoStart (void);
   //virtual void DoInitialize(void);
@@ -142,6 +144,9 @@ protected:
   //virtual void DoStart (void);
   virtual void DoInitialize(void);
 private:
+  /// I assume only one SAT interface per node
+  std::vector<uint32_t> m_satIface;
+
   EventGarbageCollector m_events;
 
   /// Address of the routing agent

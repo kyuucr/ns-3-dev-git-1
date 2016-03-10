@@ -408,6 +408,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           if (bpN !=NULL)
             {
               bpN->SetInfoInterfaces (interface, terrestrialSat[enb->GetId ()-2]);
+              bpN->SetSatInterface(interface);
             }
           pTop = satgwDev->GetObject<PointToPointNetDevice>();
           interface = pTop->GetIfIndex ();
@@ -415,6 +416,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           if (bpN !=NULL)
             {
               bpN->SetInfoInterfaces (interface, terrestrialSat[enb->GetId ()-2]);
+              bpN->SetSatInterface(interface);
             }
         }
     }
@@ -453,6 +455,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
       if (bpN !=NULL)
         {
           bpN->SetInfoInterfaces (interface, 1);
+          bpN->SetSatInterface(interface);
         }
       pTop = sgwDev->GetObject<PointToPointNetDevice>();
       interface = pTop->GetIfIndex ();
@@ -460,6 +463,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
       if (bpN !=NULL)
         {
           bpN->SetInfoInterfaces (interface, 1);
+          bpN->SetSatInterface(interface);
         }
     }
 

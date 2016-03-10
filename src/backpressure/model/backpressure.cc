@@ -452,7 +452,7 @@ RoutingProtocol::TxOpportunity (Address MAC_Address) //one interface asking to t
 	      }  
 	  } //end the_nh==127.0.0.1      
     } //end m_variant
-  
+
  uint32_t output_interface=woke_interface; 
 ///Deciding where to send the packet   
     NS_LOG_DEBUG("[TxOpportunityCallback]: the next hop is "<<the_nh);
@@ -2369,6 +2369,27 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
   
   ///(queue_iface-1) to access the proper element in the vector of queues in no longer valid
   ///with the idea of 11/11/15. queue_iface should correspond to the number of the iface
+
+  if (SatFlow && !m_satIface.empty())
+    {
+      for (std::vector<uint32_t>::iterator it = m_satIface.begin(); it != m_satIface.end(); ++it)
+        {
+          uint32_t iface = *it;
+          if (queue_iface == iface)
+            {
+              // If the output interface is the one for the satellite, just send and
+              // avoid backpressure completely.
+              Ptr<Ipv4Route> rtentry = Create<Ipv4Route> ();
+              Ipv4InterfaceAddress oifAddr = m_ipv4->GetAddress (queue_iface, 0);
+              rtentry->SetSource (oifAddr.GetLocal ());
+              rtentry->SetDestination (header.GetDestination());
+              rtentry->SetOutputDevice (m_ipv4->GetNetDevice (queue_iface));
+              ucb (rtentry, p, header);
+              return true;
+            }
+        }
+    }
+
   QueueData(p,header, hwAddr, ucb,queue_iface,check_requeue,Simulator::Now()); 
   //TSTAMP DISCIPLINE: FIFO TIME DISCIPLINE, we want to process the packet which has spent more time in the queues
   uint32_t index = 100; //dummy initialization to check that the node is empty
@@ -2596,7 +2617,6 @@ RoutingProtocol::RouteInput  (Ptr<const Packet> p,
 	    } //end if (the_nh.IsEqual("127.0.0.1"))                     
       } //end if (m_variant)
    
- 
  ///Deciding where to send the packet   
     NS_LOG_DEBUG("[RouteInput]: the next hop is "<<the_nh);
     //std::cout<<"The queue_interface is: "<<output_interface<<", the FNHBPGE function decides interface: "<<iface<<" and next_hop: "<<the_nh<<std::endl;
@@ -3259,6 +3279,14 @@ RoutingProtocol::EraseFlowTable()
   //m_reconfTimer.Schedule (2*m_helloInterval);
   
   
+}
+
+
+void
+RoutingProtocol::SetSatInterface (uint32_t iface)
+{
+  NS_LOG_FUNCTION ("Node : " << m_ipv4->GetObject<Node>()->GetId() << " iface: " << iface);
+  m_satIface.insert(m_satIface.begin(), iface);
 }
 
 void 
