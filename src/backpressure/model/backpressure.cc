@@ -1276,6 +1276,7 @@ void RoutingProtocol::DoInitialize ()
 
   HelloTimerExpire ();
   m_state.SetNeighExpire(BACKPRESSURE_NEIGHB_VALID);
+  m_state.m_maxV = m_weightV;
   Ipv4Address loopback1 ("127.0.0.1");
   Ipv4Address loopback2 ("192.168.0.1");
   for (uint32_t i=1; i < (m_ipv4->GetNInterfaces ()); i++)

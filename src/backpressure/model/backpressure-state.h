@@ -56,6 +56,7 @@ protected:
 
 public:
 
+  uint32_t m_maxV;
   BackpressureState ()
   {}
   

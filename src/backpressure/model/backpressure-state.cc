@@ -1104,7 +1104,7 @@ BackpressureState::FindNextHopBackpressureCentralized(uint32_t strategy, Ipv4Add
       double distFromNeighToSrc = CalculateDistance(sPos, nPos);
       if (it->neighborhwAddr == from)
         {
-          m_weightV = 200;
+          m_weightV = m_maxV;
         }
       float penalty = CalculatePenaltyNeigh(anode, dPos, strategy, ttl, vqLength, nvqLength, distFromCurrToSrc, distFromNeighToSrc, virt_cong, it->neighborhwAddr, from,dstAddr);
       // all the links have the same capacity
@@ -1540,7 +1540,7 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSA(Ipv4Address const
       float penalty= CalculatePenaltyNeighGridSANSA_v2(m_ipv4, anode, dstAddr, HopsFromCurr, HopsFromNeigh, it->neighborhwAddr, from,0);
       if (from == it->neighborhwAddr)
       {
-	m_weightV = 200;
+	m_weightV = m_maxV;
       }
       //float rateLink     = 1.0;							  // all the links have the same capacity
       float rateLink = GetRate(anode,it->theMainAddr, m_ipv4, it->interface);
@@ -1676,7 +1676,7 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSAv2(Ipv4Address con
       float penalty= CalculatePenaltyNeighGridSANSA_v2(m_ipv4, anode, dstAddr, HopsFromCurr, HopsFromNeigh, it->neighborhwAddr, from,0);
       if (from == it->neighborhwAddr)
       {
-	m_weightV = 200;
+	m_weightV = m_maxV;
       }
       //float rateLink     = 1.0;							  // all the links have the same capacity
       float rateLink = GetRate(anode,it->theMainAddr, m_ipv4, it->interface);
@@ -1841,7 +1841,7 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSALena(Ipv4Address c
       float penalty= CalculatePenaltyNeighGridSANSA_v2(m_ipv4, anode, dstAddr, HopsFromCurr, HopsFromNeigh, it->neighborhwAddr, from, SatFlow);
       if (from == it->neighborhwAddr)
       {
-	m_weightV = 200;
+	m_weightV = m_maxV;
       }
       //float rateLink     = 1.0;							  // all the links have the same capacity
       float rateLink = GetRate(anode,it->theMainAddr, m_ipv4, it->interface);
@@ -1947,11 +1947,11 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSALenaMR(Ipv4Address
       float penalty= CalculatePenaltyNeighGridSANSA_v2(m_ipv4, anode, dstAddr, HopsFromCurr, HopsFromNeigh, it->neighborhwAddr, from, SatFlow);
       if (from == it->neighborhwAddr)
         {
-	  m_weightV = 200;
+	  m_weightV = m_maxV;
 	}
       else
         {
-	  m_weightV = 200-myLength;
+	  m_weightV = m_maxV-myLength;
         }
       
       for (uint32_t j=0; j< it->n_interfaces; j++) 
@@ -2164,7 +2164,7 @@ BackpressureState::FindNextHopBackpressurePenaltyGridEnhanced(Ipv4Address const 
       //std::cout<<"En FNHBPGE function, From: "<<from<<", neighbor: "<<it->neighborhwAddr<<std::endl;
       if (from == it->neighborhwAddr)
       {
-	m_weightV = 200;
+	m_weightV = m_maxV;
 	//std::cout<<"En FNHBPGE function, hw neigh: "<<it->neighborhwAddr<<" and from: "<<from<<std::endl;
       }
 	           
@@ -2290,11 +2290,11 @@ BackpressureState::FindNextHopBackpressurePenaltyGridEnhancedHybrid(Ipv4Address 
       float penalty= CalculatePenaltyNeighGrid(anode, dPos, ttl, eucDistFromCurr, eucDistFromNeigh, it->neighborhwAddr, from, dstAddr);
       if (from == it->neighborhwAddr)
         {
-	   m_weightV = 200;
+	   m_weightV = m_maxV;
 	}
       else
        {
-	 m_weightV = 200-myLength;
+	 m_weightV = m_maxV-myLength;
        }
       
       for (uint32_t j=0; j< it->n_interfaces; j++) 
