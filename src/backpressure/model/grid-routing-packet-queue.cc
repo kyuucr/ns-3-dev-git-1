@@ -25,7 +25,7 @@ GridRoutingPacketQueue::GridRoutingPacketQueue ()
    : RoutingPacketQueue ()
 {
   //m_interfaces= 4; //in a grid this is the maximum number of interfaces
-  m_interfaces = 10; //the problem is this hardcoded parameter!! TODO: Change
+  m_interfaces = 15; //the problem is this hardcoded parameter!! TODO: Change
   NS_LOG_FUNCTION_NOARGS();
   ListPacketQueue eth_queue;
   for (uint32_t i=0; i<m_interfaces; i++)
