@@ -301,7 +301,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
   p2phsat.SetQueue("ns3::DropTailQueue",
                    "Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES),
                    "MaxBytes", UintegerValue ((m_s1uLinkDataRateSatellite.GetBitRate() / 8)*
-                                              m_s1uLinkDelaySatellite.GetSeconds ()));
+                                              2*m_s1uLinkDelaySatellite.GetSeconds ()));
 
   // Set EPC - node point to ponit link characteristics
   PointToPointHelper p2phepc;
@@ -311,7 +311,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
   p2phepc.SetQueue("ns3::DropTailQueue",
                    "Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES),
                    "MaxBytes", UintegerValue ((DataRate("1Gbps").GetBitRate() / 8)*
-                                              Time("0.5ms").GetSeconds ()));
+                                              2*Time("0.5ms").GetSeconds ()));
 
   int32_t numberEnodeBs = enbs.GetN ();
   int SatGw = std::count (terrestrialSat.begin (), terrestrialSat.end (), 1);
@@ -347,8 +347,6 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           Ptr<NetDevice> enbDev = enbSgwDevices.Get (0);
           Ptr<NetDevice> sgwDev = enbSgwDevices.Get (1);
 
-          TraceAndDebug (enbDev, sgwDev);
-
           m_s1uIpv4AddressHelper.NewNetwork ();
           m_s1uIpv4AddressHelper.Assign (enbSgwDevices);
 
@@ -370,6 +368,7 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           if (bpN !=NULL)
             {
               bpN->SetInfoInterfaces (interface, terrestrialEpc[enb->GetId ()-2]);
+              TraceAndDebug (enbDev, sgwDev);
             }
           pTop = sgwDev->GetObject<PointToPointNetDevice>();
           interface = pTop->GetIfIndex ();
@@ -468,6 +467,10 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
 
   uint32_t linkCount = 0;
   p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (m_s1uLinkDataRateTerrestrial));
+  p2phterr.SetQueue("ns3::DropTailQueue",
+                    "Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES),
+                    "MaxBytes", UintegerValue ((m_s1uLinkDataRateTerrestrial.GetBitRate() / 8)*
+                                              2*m_s1uLinkDelayTerrestrial.GetSeconds()));
   for (size_t i = 0; i < terrestrialConMatrix.size (); i++)
     {
       for (size_t j = 0; j < terrestrialConMatrix[i].size (); j++)
@@ -477,8 +480,6 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
               NodeContainer n_links = NodeContainer (enbs.Get (i), enbs.Get (j));
 
               NetDeviceContainer n_devs = p2phterr.Install (n_links);
-
-              TraceAndDebug (n_devs.Get (0), n_devs.Get (1));
 
               m_s1uIpv4AddressHelper.NewNetwork ();
               m_s1uIpv4AddressHelper.Assign (n_devs);
@@ -507,6 +508,8 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
                   if (bpN !=NULL)
                     {
                       bpN->SetInfoInterfaces (interface, terrestrialConMatrix[i][j]);
+
+                      TraceAndDebug (n_devs.Get (0), n_devs.Get (1));
                     }
                 }
               pTop = n_devs.Get (1)->GetObject<PointToPointNetDevice>();
