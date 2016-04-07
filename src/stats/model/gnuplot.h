@@ -205,6 +205,8 @@ public:
    */
   void AddEmptyLine ();
 
+  void Clear ();
+
 private:
 
   /**

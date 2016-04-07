@@ -384,6 +384,13 @@ Gnuplot2dDataset::Add (double x, double y, double errorDelta)
   reinterpret_cast<Data2d*>(m_data)->m_pointset.push_back (data);
 }
 
+void
+Gnuplot2dDataset::Clear ()
+{
+  reinterpret_cast<Data2d*>(m_data)->m_pointset.clear ();
+  NS_ASSERT (reinterpret_cast<Data2d*>(m_data)->IsEmpty());
+}
+
 void 
 Gnuplot2dDataset::Add (double x, double y, double xErrorDelta, double yErrorDelta)
 {
