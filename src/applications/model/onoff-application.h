@@ -152,6 +152,7 @@ private:
 
   Ptr<Socket>     m_socket;       //!< Associated socket
   Address         m_peer;         //!< Peer address
+  Address         m_local;        //!< Local address
   bool            m_connected;    //!< True if connected
   Ptr<RandomVariableStream>  m_onTime;       //!< rng for On Time
   Ptr<RandomVariableStream>  m_offTime;      //!< rng for Off Time

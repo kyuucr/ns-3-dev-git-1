@@ -67,6 +67,10 @@ OnOffApplication::GetTypeId (void)
                    AddressValue (),
                    MakeAddressAccessor (&OnOffApplication::m_peer),
                    MakeAddressChecker ())
+    .AddAttribute ("Local", "The address to bind to",
+                   AddressValue (),
+                   MakeAddressAccessor (&OnOffApplication::m_local),
+                   MakeAddressChecker ())
     .AddAttribute ("OnTime", "A RandomVariableStream used to pick the duration of the 'On' state.",
                    StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"),
                    MakePointerAccessor (&OnOffApplication::m_onTime),
@@ -165,7 +169,7 @@ void OnOffApplication::StartApplication () // Called at time specified by Start
   else if (InetSocketAddress::IsMatchingType (m_peer) ||
            PacketSocketAddress::IsMatchingType (m_peer))
     {
-      m_socket->Bind ();
+      m_socket->Bind (m_local);
     }
   m_socket->Connect (m_peer);
   m_socket->SetAllowBroadcast (true);
