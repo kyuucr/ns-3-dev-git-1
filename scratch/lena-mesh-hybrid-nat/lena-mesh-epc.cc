@@ -137,6 +137,7 @@ public:
   Time end;
   std::string socketType;
   AppMode mode;
+  std::string rate;
 };
 
 
@@ -289,22 +290,21 @@ ErrorCloseCb (Ptr<Socket> s)
 
 static Ptr<Socket>
 CreateConnectedSocket (Ptr<Node> node, const std::string &socketType,
-                       Gnuplot2dDataset *rttData, Gnuplot2dDataset *cwndData)
+                       Gnuplot2dDataset *rttData = 0, Gnuplot2dDataset *cwndData = 0)
 {
-  Ptr<Socket> s;
-  if (socketType.compare ("ns3::TcpSocketFactory") == 0)
-    {
-      s = Socket::CreateSocket (node, TcpSocketFactory::GetTypeId ());
-    }
-  else if (socketType.compare ("ns3::UdpSocketFactory") == 0)
-    {
-      s = Socket::CreateSocket (node, UdpSocketFactory::GetTypeId());
-    }
+  NS_ASSERT (node != 0);
+  Ptr<Socket> s = Socket::CreateSocket (node, TypeId::LookupByName (socketType));
 
-  s->TraceConnectWithoutContext ("RTT", MakeBoundCallback (&TraceRtt, rttData));
   if (socketType.compare ("ns3::TcpSocketFactory") == 0)
     {
-      s->TraceConnectWithoutContext ("CongestionWindow", MakeBoundCallback (&TraceCwnd, cwndData));
+      if (rttData != 0)
+        {
+          s->TraceConnectWithoutContext ("RTT", MakeBoundCallback (&TraceRtt, rttData));
+        }
+      if (cwndData != 0)
+        {
+          s->TraceConnectWithoutContext ("CongestionWindow", MakeBoundCallback (&TraceCwnd, cwndData));
+        }
     }
 
   s->SetCloseCallbacks (MakeCallback (&NormalCloseCb),
@@ -316,7 +316,7 @@ CreateConnectedSocket (Ptr<Node> node, const std::string &socketType,
 
 static void
 InstallSinks (NodeContainer &nodes, uint16_t port, const std::string &transportProt,
-              double stop_time, UintDataSet *goodputSet)
+              double stop_time, UintDataSet *goodputSet = 0)
 {
   Address sinkLocalAddress (InetSocketAddress (Ipv4Address::GetAny (), port));
   PacketSinkHelper sinkHelper (transportProt, sinkLocalAddress);
@@ -327,8 +327,11 @@ InstallSinks (NodeContainer &nodes, uint16_t port, const std::string &transportP
   for (ApplicationContainer::Iterator it = sinkApp.Begin (); it != sinkApp.End (); ++it)
     {
       Ptr<Application> app = (*it);
-      app->TraceConnectWithoutContext ("Rx",
-                                       MakeBoundCallback (&TraceGoodput, goodputSet));
+      if (goodputSet != 0)
+        {
+          app->TraceConnectWithoutContext ("Rx",
+                                           MakeBoundCallback (&TraceGoodput, goodputSet));
+        }
     }
 }
 
@@ -456,7 +459,6 @@ PopulateLocationMapThroughHops (NodeContainer enbNodes, std::vector<bool> theGws
   //first check if it is not empty, if it has an element, erase it
   if (!(LocationList::m_ids.empty ()))
     {
-      //std::cout<<"Lo voy a cambiar en time: "<<Simulator::Now()<<std::endl;
       LocationList::m_ids.clear ();
     }
 
@@ -487,7 +489,6 @@ PopulateLocationMapThroughHops (NodeContainer enbNodes, std::vector<bool> theGws
     }
   //2-initializing the routes in the table (the distance value can be passed as a parameter)
   srt->UpdateRouteSansaLena (distance + 0.2);
-  //std::cout<<"Tabla satelite"<<std::endl;
   srtsat->UpdateRouteSansaLena (distance + 0.2);
 }
 
@@ -650,7 +651,6 @@ readNxNMatrix (std::string adj_mat_file_name)
     }
 
   adj_mat_file.close ();
-  std::cout<<std::endl;
   return array;
 }
 
@@ -727,9 +727,10 @@ ParseApp (const std::string &app, std::vector<AppProperties*> &definitions)
       p->start = Time (app_properties.at(2));
       p->end   = Time (app_properties.at(3));
 
-      if (app_properties.at(4).compare ("cbr") == 0)
+      if (app_properties.at(4).substr(0,3).compare ("cbr") == 0)
         {
           p->mode = CBR;
+          p->rate = app_properties.at(4).substr(3,std::string::npos);
         }
       else if (app_properties.at(4).compare ("conversational") == 0)
         {
@@ -1325,15 +1326,17 @@ main (int argc, char *argv[])
       Ipv4Address dstAddr = p->to->GetObject<Ipv4>()->GetAddress (1,0).GetLocal ();
       uint32_t id;
 
+      Ptr<Socket> s;
+      NodeContainer to (p->to);
+
       if (p->mode == FTP || p->mode == FTP_SAT)
         {
+          NS_ABORT_MSG_UNLESS (p->rate.empty(), "Rate should not be specified with TCP");
           BulkSendHelper ftp (p->socketType, Address ());
 
           ftp.SetAttribute ("SendSize", UintegerValue (1000));
           ftp.SetAttribute ("MaxBytes", UintegerValue (ftpBytes));
 
-          Ptr<Socket> s;
-          NodeContainer to (p->to);
 
           if (p->mode == FTP)
             {
@@ -1373,11 +1376,52 @@ main (int argc, char *argv[])
           s = CreateConnectedSocket (p->from, p->socketType, rttData, cwndData);
           app->SetSocket (s);
         }
+      else if (p->mode == CBR)
+        {
+          NS_ABORT_IF (p->rate.empty());
+          OnOffHelper onOffHelper (p->socketType, Address ());
+          id = terr_port+10000;
+          onOffHelper.SetConstantRate(DataRate (p->rate), 1000);
+
+          onOffHelper.SetAttribute ("Remote",
+                                    AddressValue (InetSocketAddress (dstAddr, terr_port)));
+          onOffHelper.SetAttribute ("Local",
+                                    AddressValue (InetSocketAddress (Ipv4Address::GetAny (), id)));
+          onOffHelper.SetAttribute ("Protocol",
+                                    TypeIdValue (TypeId::LookupByName (p->socketType.c_str ())));
+
+          ApplicationContainer sourceApp = onOffHelper.Install (p->from);
+          sourceApp.Start (p->start);
+          sourceApp.Stop (p->end);
+
+          Ptr<OnOffApplication> app = DynamicCast<OnOffApplication> (sourceApp.Get (0));
+          if (Names::FindName(p->from).substr(0,2).compare ("UE") == 0 ||
+              Names::FindName(p->to).substr(0,2).compare("UE") == 0)
+            {
+              Gnuplot2dDataset *goodData = new Gnuplot2dDataset ();
+              goodputSet.insert (goodputSet.end(), UintDataPair (id, goodData));
+              s = CreateConnectedSocket (p->from, p->socketType);
+
+              InstallSinks (to, terr_port, p->socketType, simTime, &goodputSet);
+            }
+          else
+            {
+              // CBR is not monitored if it is not going to UE, it's just background
+              s = Socket::CreateSocket (p->from, TypeId::LookupByName (p->socketType));
+              InstallSinks (to, terr_port, p->socketType, simTime);
+            }
+          app->SetSocket (s);
+          terr_port += 2;
+        }
       else
         {
           NS_FATAL_ERROR ("Unsupported APP!");
         }
+
+      delete p;
     }
+
+  appDefinitions.erase (appDefinitions.begin(), appDefinitions.end());
 
   //Packet::EnablePrinting();
 
