@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <ns3/uinteger.h>
 
 namespace ns3 {
 
@@ -205,7 +206,21 @@ public:
    */
   void AddEmptyLine ();
 
+  /**
+   * \brief Clear the dataset
+   */
   void Clear ();
+
+  /**
+   * \brief Sum all the Y value in this dataset
+   */
+  void SumYValues (double &sum, uint32_t &n);
+
+  /**
+   * \brief Get last X value from the dataset
+   * \return last X value
+   */
+  double GetLastX ();
 
 private:
 

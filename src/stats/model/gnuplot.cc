@@ -391,6 +391,44 @@ Gnuplot2dDataset::Clear ()
   NS_ASSERT (reinterpret_cast<Data2d*>(m_data)->IsEmpty());
 }
 
+void
+Gnuplot2dDataset::SumYValues (double &sum, uint32_t &n)
+{
+  Data2d *data = reinterpret_cast<Data2d*>(m_data);
+  NS_ASSERT (data != 0);
+
+  n = 0;
+  sum = 0.0;
+  for (PointSet::iterator it = data->m_pointset.begin() ; it != data->m_pointset.end(); ++it)
+    {
+      if ((*it).empty)
+        {
+          continue;
+        }
+      ++n;
+      sum += (*it).y;
+    }
+}
+
+double
+Gnuplot2dDataset::GetLastX ()
+{
+  Data2d *data = reinterpret_cast<Data2d*>(m_data);
+  if (data->IsEmpty())
+    {
+      return 0.0;
+    }
+
+  PointSet::iterator it = data->m_pointset.end();
+  do
+    {
+      it--;
+    }
+  while ((*it).empty);
+
+  return (*it).x;
+}
+
 void 
 Gnuplot2dDataset::Add (double x, double y, double xErrorDelta, double yErrorDelta)
 {
