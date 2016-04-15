@@ -37,8 +37,8 @@ fi
 mkdir -p $output
 
 rout=$(echo ${routing} | cut -d "-" -f1)
-bpV=$(echo ${routing} | cut -d "-" -f2)
-bpQ=$(echo ${routing} | cut -d "-" -f3)
+bpQ=$(echo ${routing} | cut -d "-" -f2)
+bpV=$(echo ${routing} | cut -d "-" -f3)
 
 routString="--routing=${rout}"
 if [[ ${rout} == "bp" ]]; then
@@ -46,10 +46,15 @@ if [[ ${rout} == "bp" ]]; then
   routString="${routString} --localstrategy=${bpV} --algV=2 --theV=${bpQ} --bpStat=false"
 fi
 
-args="--simTime=500.0s ${ssth} --replication=0 \
+if [[ "${bpQ}" == "" ]]; then
+  echo "Missing queue for mesh network! "
+  exit 1
+fi
+
+args="--simTime=500.0s ${ssth} --replication=0 --meshQ=${bpQ} \
       --num-ues=${ue} --distance=60.0 ${routString} \
       --tcp=ns3::${tcp} --out=${output} --app=${app} \
-      --ftpBytes=15000000 --scenario=${scenario}"
+      --ftpBytes=10000000 --scenario=${scenario}"
 
 ${cmd} ./build/scratch/lena-mesh-hybrid-nat/lena-mesh-hybrid-nat ${args}
 

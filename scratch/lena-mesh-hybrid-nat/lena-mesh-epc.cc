@@ -92,6 +92,7 @@ struct PtrForPrinting
   StringDataSet *idToName;
   std::string prefix;
   std::string postfix;
+  bool shouldAggregate;
 };
 
 enum AppMode
@@ -197,7 +198,7 @@ PrintGnuplottableEnbListToFile (std::string filename)
 }
 
 static void
-TraceGoodput (UintDataSet *goodputSet,
+TraceGoodput (UintDataSet *goodputSet, bool shouldAggregate,
               Ptr<const Packet> p, const Address &addr)
 {
   //Ipv4Address from = InetSocketAddress::ConvertFrom (addr).GetIpv4 ();
@@ -210,6 +211,11 @@ TraceGoodput (UintDataSet *goodputSet,
 
   set = it->second;
   set->Add (Simulator::Now ().GetSeconds (), p->GetSize ());
+
+  if (! shouldAggregate)
+    {
+      return;
+    }
 
   // Aggregate stats
   it = goodputSet->find (0);
@@ -316,7 +322,7 @@ CreateConnectedSocket (Ptr<Node> node, const std::string &socketType,
 
 static void
 InstallSinks (NodeContainer &nodes, uint16_t port, const std::string &transportProt,
-              double stop_time, UintDataSet *goodputSet = 0)
+              double stop_time, UintDataSet *goodputSet = 0, bool shouldAggregate = true)
 {
   Address sinkLocalAddress (InetSocketAddress (Ipv4Address::GetAny (), port));
   PacketSinkHelper sinkHelper (transportProt, sinkLocalAddress);
@@ -330,7 +336,7 @@ InstallSinks (NodeContainer &nodes, uint16_t port, const std::string &transportP
       if (goodputSet != 0)
         {
           app->TraceConnectWithoutContext ("Rx",
-                                           MakeBoundCallback (&TraceGoodput, goodputSet));
+                                           MakeBoundCallback (&TraceGoodput, goodputSet, shouldAggregate));
         }
     }
 }
@@ -762,16 +768,35 @@ ParseApp (const std::string &app, std::vector<AppProperties*> &definitions)
 }
 
 static void
-OutputGnuplot (Gnuplot2dDataset *dataset, const std::string &fileName)
+OutputGnuplot (Gnuplot2dDataset *dataset, const std::string &fileName,
+               bool shouldAggregate = false)
 {
-  Gnuplot plot;
   std::ofstream dataFile;
-
-  plot.AddDataset (*dataset);
-
-  NulOStream str;
   dataFile.open (fileName.c_str(), std::fstream::out | std::fstream::app);
-  plot.GenerateOutput (str, dataFile, fileName);
+
+  if (shouldAggregate)
+    {
+      uint32_t n = 0;
+      double sum = 0;
+
+      dataset->SumYValues (sum, n);
+      double x = dataset->GetLastX ();
+
+      if (x == 0.0)
+        {
+          x = Simulator::Now().GetSeconds();
+        }
+
+      dataFile << x << " " << sum << std::endl;
+    }
+  else
+    {
+      Gnuplot plot;
+      plot.AddDataset (*dataset);
+      NulOStream str;
+      plot.GenerateOutput (str, dataFile, fileName);
+    }
+
   dataFile.close ();
 }
 
@@ -784,17 +809,19 @@ PrintUintDataStats (UintDataSet &data, PtrForPrinting ptr)
 
       if (it_name != ptr.idToName->end ())
         {
-          OutputGnuplot ((it->second), ptr.prefix + it_name->second + ptr.postfix);
+          OutputGnuplot ((it->second), ptr.prefix + it_name->second + ptr.postfix,
+                         ptr.shouldAggregate);
           it->second->Clear();
         }
       else if (it->first == 0)
         {
-          OutputGnuplot ((it->second), ptr.prefix + "agg" + ptr.postfix);
+          OutputGnuplot ((it->second), ptr.prefix + "agg" + ptr.postfix,
+                         ptr.shouldAggregate);
           it->second->Clear();
         }
       else
         {
-          NS_FATAL_ERROR ("FLOW NOT RECOGNIZED ");
+          NS_FATAL_ERROR ("FLOW to port " << it->first << " NOT RECOGNIZED ");
         }
     }
 }
@@ -941,6 +968,7 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpWestwood::FilterType", EnumValue (1));
   Config::SetDefault ("ns3::TcpSocket::InitialCwnd", UintegerValue (2));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (2));
+  Config::SetDefault ("ns3::olsr::RoutingProtocol::HelloInterval", TimeValue (MilliSeconds (100)));
 
   Config::SetDefault ("ns3::LteEnbRrc::EpsBearerToRlcMapping", EnumValue (LteEnbRrc::RLC_UM_ALWAYS));
 
@@ -968,6 +996,7 @@ main (int argc, char *argv[])
   std::string tcpCong ("ns3::TcpNewReno");
   uint32_t ftpBytes (0);
   uint32_t initialSsTh (UINT32_MAX);
+  uint32_t meshQ (0);
   bool rem = false;
   bool netAnim = false;
   bool bpStat = false;
@@ -998,6 +1027,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("bpStat", "Enable or disable bp statistics", bpStat);
   cmd.AddValue ("initSsTh", "Initial slow start threshold", initialSsTh);
   cmd.AddValue ("scenario", "Scenario", scenario);
+  cmd.AddValue ("meshQ", "Queue value in the mesh (packets)", meshQ);
 
   ConfigStore inputConfig;
   inputConfig.ConfigureDefaults ();
@@ -1223,7 +1253,8 @@ main (int argc, char *argv[])
   pgw_ipv4->SetRoutingProtocol (ipv4Routing);
 
   // Interconnect enbs amongst them
-  epcHelper->AddHybridMeshBackhaul (enbNodes, terrestrialConnectivityMat, terrestrialEpc, terrestrialSat, list);
+  epcHelper->AddHybridMeshBackhaul (enbNodes, terrestrialConnectivityMat,
+                                    terrestrialEpc, terrestrialSat, list, meshQ);
 
   // Install LTE Devices to the nodes which have traffic actually
   NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes);
@@ -1324,7 +1355,9 @@ main (int argc, char *argv[])
       AppProperties *p = (*it);
       //Ipv4Address srcAddr = p->from->GetObject<Ipv4>()->GetAddress (1,0).GetLocal ();
       Ipv4Address dstAddr = p->to->GetObject<Ipv4>()->GetAddress (1,0).GetLocal ();
-      uint32_t id;
+      uint32_t id; // represents the current port of the application. Remember
+                   // to increase it by 2 for each application (each application
+                   // will have different ports)
 
       Ptr<Socket> s;
       NodeContainer to (p->to);
@@ -1381,6 +1414,9 @@ main (int argc, char *argv[])
           NS_ABORT_IF (p->rate.empty());
           OnOffHelper onOffHelper (p->socketType, Address ());
           id = terr_port+10000;
+
+          idToName.insert(StringDataPair (id, Names::FindName(p->from)+"-"+Names::FindName(p->to)));
+
           onOffHelper.SetConstantRate(DataRate (p->rate), 1000);
 
           onOffHelper.SetAttribute ("Remote",
@@ -1395,21 +1431,16 @@ main (int argc, char *argv[])
           sourceApp.Stop (p->end);
 
           Ptr<OnOffApplication> app = DynamicCast<OnOffApplication> (sourceApp.Get (0));
-          if (Names::FindName(p->from).substr(0,2).compare ("UE") == 0 ||
-              Names::FindName(p->to).substr(0,2).compare("UE") == 0)
-            {
-              Gnuplot2dDataset *goodData = new Gnuplot2dDataset ();
-              goodputSet.insert (goodputSet.end(), UintDataPair (id, goodData));
-              s = CreateConnectedSocket (p->from, p->socketType);
 
-              InstallSinks (to, terr_port, p->socketType, simTime, &goodputSet);
-            }
-          else
-            {
-              // CBR is not monitored if it is not going to UE, it's just background
-              s = Socket::CreateSocket (p->from, TypeId::LookupByName (p->socketType));
-              InstallSinks (to, terr_port, p->socketType, simTime);
-            }
+          Gnuplot2dDataset *goodData = new Gnuplot2dDataset ();
+
+          goodputSet.insert (goodputSet.end(), UintDataPair (id, goodData));
+          s = CreateConnectedSocket (p->from, p->socketType);
+
+          // These goodput stat will not be inserted in the aggregate, neither
+          // will stop simulation in any case
+          InstallSinks (to, terr_port, p->socketType, simTime, &goodputSet, false);
+
           app->SetSocket (s);
           terr_port += 2;
         }
@@ -1478,11 +1509,13 @@ main (int argc, char *argv[])
   PtrForPrinting p;
   p.idToName = &idToName;
   p.prefix = dirResultsFile + "/report-";
+  p.shouldAggregate = true;
 
   p.postfix = "-goodput.data";
   Simulator::Schedule (Seconds (1.0), &PeriodicFreeUintDataStats, goodputSet, p);
 
   p.postfix = "-cwnd.data";
+  p.shouldAggregate = false;
   Simulator::Schedule (Seconds (1.0), &PeriodicFreeUintDataStats, cWndSet, p);
 
   p.postfix = "-rtt.data";
@@ -1501,11 +1534,19 @@ main (int argc, char *argv[])
       std::ofstream dataFile;
       dataFile.open ((dirResultsFile + "/ERROR.txt").c_str (), std::fstream::out | std::fstream::app);
       dataFile << "Not Received all bytes. Missing: " << totalBytes << std::endl;
-      dataFile << "Number of socket that does not closed correctly: " << errorSocket << std::endl;
+      dataFile << "Number of socket with errors: " << errorSocket << std::endl;
       dataFile.close ();
+    }
+  else
+    {
+      std::ofstream dataFile;
+      dataFile.open ((p.prefix+"curr-time.txt").c_str(), std::fstream::out | std::fstream::app);
+      dataFile << Simulator::Now().GetSeconds() << " finish. "
+                  "Number of sockets with errors: " << errorSocket << std::endl;
     }
 
   p.postfix = "-goodput.data";
+  p.shouldAggregate = true;
   PrintUintDataStats (goodputSet, p);
   FreeUintDataSet(goodputSet);
 

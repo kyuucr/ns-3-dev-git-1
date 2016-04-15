@@ -16,8 +16,8 @@ function get_background_traffic
 {
   cbr_rate=$1
   echo -en "[ENB5|ENB1|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
-  echo -en "[ENB15|ENB1|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
-  echo -en "[ENB25|ENB1|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]\n"
+  echo -en "[ENB15|ENB11|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
+  echo -en "[ENB25|ENB21|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]\n"
 }
 
 bp_queue=340
@@ -25,6 +25,10 @@ bp_queue=340
 # [app] [ue_number] [tcp] [routing] [scenario] [ssth] [prefix] [cmd]
 SHELL=$(type -p bash) parallel -v --dry-run --halt now,fail=1 -j8 ./execute.sh \
   "\$(./getappfor.sh {1} download \"$(get_background_traffic {4}Mbps)\") {1} {2} {3} 1 ss scal-download-{4}Mbps" ::: \
-  25 ::: ${TCP} ::: bp-2-${bp_queue} bp-3-${bp_queue} olsr ::: \
-  260 280 300
+  25 ::: ${TCP} ::: bp-${bp_queue}-2 bp-${bp_queue}-3 olsr-${bp_queue} ::: \
+  5 $(seq 10 10 310)
 
+SHELL=$(type -p bash) parallel -v --dry-run --halt now,fail=1 -j8 ./execute.sh \
+  "\$(./getappfor.sh {1} upload \"$(get_background_traffic {4}Mbps)\") {1} {2} {3} 1 ss scal-upload-{4}Mbps" ::: \
+  25 ::: ${TCP} ::: bp-${bp_queue}-2 bp-${bp_queue}-3 olsr-${bp_queue} ::: \
+  5 $(seq 10 10 310)
