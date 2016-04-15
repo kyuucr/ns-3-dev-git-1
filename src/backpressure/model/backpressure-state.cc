@@ -565,7 +565,7 @@ BackpressureState::CalculatePenaltyNeighGridSANSA_v2(Ptr<Ipv4> m_ipv4, uint32_t 
     {
       uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
       //if ((now.GetSeconds()-it->lastHello.GetSeconds())<1.0)
-      if (IsValidNeighborSANSA( m_ipv4 ,it->lastHello, it->interface, SatFlow))
+      if (IsValidNeighborSANSA( m_ipv4 ,it->lastHello, it->interface, SatFlow, dstAddr, it->theMainAddr))
         { //ALIVE neighbor
 	 //uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
 	 //if (HopsFromCurr>=HopsNeigh)
@@ -1733,7 +1733,7 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSAv2(Ipv4Address con
 
 ///////////////////////////////////////////////////////////////////////////
 bool
-BackpressureState::IsValidNeighborSANSA(Ptr<Ipv4> m_ipv4, Time lastHello, uint32_t interface, bool SatFlow )
+BackpressureState::IsValidNeighborSANSA(Ptr<Ipv4> m_ipv4, Time lastHello, uint32_t interface, bool SatFlow, Ipv4Address DstAddr, Ipv4Address NeighAddr )
 {
   
   if (!(m_ipv4->IsUp(interface)))
@@ -1741,7 +1741,14 @@ BackpressureState::IsValidNeighborSANSA(Ptr<Ipv4> m_ipv4, Time lastHello, uint32
       //if the interface is not up is not a valid neighbor
       return false;
     }
-     
+
+  //to avoid using EPC in DL to turn back as a possible neighbor
+  Ptr<Node> epcNode = NodeList::GetNode(0);
+  Ptr<Ipv4> epcNode_ipv4 = epcNode->GetObject<Ipv4>();
+  Ipv4Address epcAddress = epcNode_ipv4->GetAddress(1,0).GetLocal();;
+  if ( !DstAddr.IsEqual(epcAddress) && NeighAddr.IsEqual(epcAddress) )
+      return false;
+
   //time constraints of a possible neighbor
   if ( (Simulator::Now().GetSeconds()-lastHello.GetSeconds()) > m_neighValid.GetSeconds() )
     {
@@ -1807,7 +1814,7 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSALena(Ipv4Address c
            //std::cout<<"En "<<currAddr<<"neighbor es: "<<it->neighborMainAddr<<"y su m_neighValid.GetSeconds es: "<<m_neighValid.GetSeconds()<<std::endl;  
       NS_LOG_DEBUG("duration of a neighbor as valid "<<m_neighValid.GetSeconds());
       ///conditions to evaluate if a neighbor is valid
-      if (!IsValidNeighborSANSA(m_ipv4, it->lastHello, it->interface, SatFlow))
+      if (!IsValidNeighborSANSA(m_ipv4, it->lastHello, it->interface, SatFlow, dstAddr, it->theMainAddr))
 	continue;
       ///
       if ( it->theMainAddr.IsEqual(dstAddr))      //One Hop to the destination 
@@ -1926,7 +1933,7 @@ BackpressureState::FindNextHopBackpressureCentralizedGridSANSALenaMR(Ipv4Address
       NS_LOG_DEBUG("duration of a neighbor as valid "<<m_neighValid.GetSeconds());
       //if ( ( now.GetSeconds()-it->lastHello.GetSeconds() ) > m_neighValid.GetSeconds() )
       ///conditions to evaluate if a neighbor is valid
-      if (!IsValidNeighborSANSA(m_ipv4, it->lastHello, it->interface, SatFlow))
+      if (!IsValidNeighborSANSA(m_ipv4, it->lastHello, it->interface, SatFlow, dstAddr, it->theMainAddr))
 	continue;     
       ///
       if ( it->theMainAddr.IsEqual(dstAddr))      //One Hop to the destination 

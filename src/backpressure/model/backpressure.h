@@ -319,12 +319,12 @@ private:
    uint32_t OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4>, Ipv4Address const &currAddr, Ipv4Address const &dstAddr, Mac48Address from, bool SatFlow, uint32_t &check_requeue);
   /// Map the Mac Address of a net device to the IP interface of this net device
   void MapMACAddressToIPinterface (Address MAC, uint32_t &interface);
-  uint32_t AlternativeIfaceSelection (Ptr<Ipv4> , uint32_t, std::vector<double> &distances);
+  uint32_t AlternativeIfaceSelection (Ptr<Ipv4> , uint32_t, std::vector<double> &distances, Ipv4Address);
   uint32_t AlternativeIfaceSelectionSANSA (Ptr<Ipv4> , uint32_t, Ipv4Address ); //std::vector<uint32_t> &distances);
   ///Determine the source port and the destination port of an incoming/stored packet: currently UDP, TCP and GTP protocols supported
   void GetSourceAndDestinationPort(Ipv4Header header, Ptr<Packet> packet, uint16_t &s_port, uint16_t &d_port);
   ///Determine if a neighbor is valid or not in the SANSA scenario
-  bool IsValidNeighborSANSA (Time lastHello, uint32_t interface, bool SatFlow, bool SatNode);
+  bool IsValidNeighborSANSA (Time lastHello, uint32_t interface, bool SatFlow, bool SatNode, Ipv4Address DstAddr, Ipv4Address NeighAddr );
 
   Ipv4Address m_mainAddress;
 

@@ -3537,7 +3537,7 @@ RoutingProtocol::OutputIfaceDeterminationGrid(Ptr<Ipv4> m_ipv4, uint8_t  ttl, Ip
 	         if (m_queuedData->GetIfaceSize(selected_eth)< (m_queuedData->GetMaxSize()/4))
 		    m_histeresis[selected_eth]=false;
 		 
-	         uint32_t tmp = AlternativeIfaceSelection(m_ipv4, useful_neighbor, distances);
+	         uint32_t tmp = AlternativeIfaceSelection(m_ipv4, useful_neighbor, distances, dstAddr);
 	         if (tmp==10)
 		   {
 	             output_interface = theNeighGoodWeight[0]->interface;
@@ -3559,7 +3559,7 @@ RoutingProtocol::OutputIfaceDeterminationGrid(Ptr<Ipv4> m_ipv4, uint8_t  ttl, Ip
 }
 
 bool
-RoutingProtocol::IsValidNeighborSANSA (Time lastHello, uint32_t interface, bool SatFlow, bool SatNode)
+RoutingProtocol::IsValidNeighborSANSA (Time lastHello, uint32_t interface, bool SatFlow, bool SatNode, Ipv4Address DstAddr, Ipv4Address NeighAddr )
 {
   
   if (!(m_ipv4->IsUp(interface)))
@@ -3567,7 +3567,13 @@ RoutingProtocol::IsValidNeighborSANSA (Time lastHello, uint32_t interface, bool 
       //if the interface is not up is not a valid neighbor
       return false;
     }
-  
+
+  //to avoid using EPC in DL to turn back as a possible neighbor
+  Ptr<Node> epcNode = NodeList::GetNode(0);
+  Ptr<Ipv4> epcNode_ipv4 = epcNode->GetObject<Ipv4>();
+  Ipv4Address epcAddress = epcNode_ipv4->GetAddress(1,0).GetLocal();;
+  if ( !DstAddr.IsEqual(epcAddress) && NeighAddr.IsEqual(epcAddress) )
+      return false;
   //time constraints of a possible neighbor
   if ( (Simulator::Now().GetSeconds()-lastHello.GetSeconds()) > m_state.m_neighValid.GetSeconds())
     {
@@ -3635,7 +3641,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
   for (NeighborSet::iterator it = neighbor.begin(); it!=neighbor.end(); it++)
     {
       uint32_t HopsNeigh = LocationList::GetHops(it->theMainAddr, dstAddr,SatFlow);
-      if (IsValidNeighborSANSA( it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue()))
+      if (IsValidNeighborSANSA( it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue(), dstAddr, it->theMainAddr))
         {
 	  if (HopsFromCurr > HopsNeigh)
 	    {
@@ -3652,7 +3658,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
       if (iter != LocationList::m_SatGws.end())
 	IsNeigSatNode = true;*/
       ///conditions to evaluate if a neighbor is valid
-      if (!IsValidNeighborSANSA(it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue()))
+      if (!IsValidNeighborSANSA(it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue(), dstAddr, it->theMainAddr) )
       {
 	neighbor_index++; 
 	//y esto sube pero no distances vector: quizas mal? en teoría, corregido. Dejo comentario para 
@@ -3739,7 +3745,7 @@ RoutingProtocol::OutputIfaceDeterminationGridSANSALenaMR(Ptr<Ipv4> m_ipv4, Ipv4A
 	      std::map<Ipv4Address,uint32_t>::iterator iter = LocationList::m_SatGws.find(it->theMainAddr);
 	      if (iter != LocationList::m_SatGws.end())
 	        IsNeigSatNode = true;*/
-              if (!IsValidNeighborSANSA(it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue()))
+              if (!IsValidNeighborSANSA(it->lastHello, it->interface, SatFlow, m_state.GetSatNodeValue(), dstAddr, it->theMainAddr))
 	        continue; 
 	      uint32_t HopsFromNeigh = LocationList::GetHops(it->theMainAddr, dstAddr, SatFlow);
 	      if (HopsFromNeigh == ref_distance)
@@ -3900,7 +3906,7 @@ RoutingProtocol::MapMACAddressToIPinterface(Address MAC, uint32_t &interface)
 }
 
 uint32_t 
-RoutingProtocol::AlternativeIfaceSelection (Ptr<Ipv4> m_ipv4, uint32_t useful_neighbor, std::vector<double> &distances)
+RoutingProtocol::AlternativeIfaceSelection (Ptr<Ipv4> m_ipv4, uint32_t useful_neighbor, std::vector<double> &distances, Ipv4Address dstAddr)
 {
   //As the selected interface is congested, we need a neighbor further from destination to forward the packet
   uint32_t neighbor_recheck_index= 0, eqNeighs=0;
@@ -3924,7 +3930,7 @@ RoutingProtocol::AlternativeIfaceSelection (Ptr<Ipv4> m_ipv4, uint32_t useful_ne
        it != neighbor.end(); it++)
     {
       //if (!m_ipv4->IsUp(it->interface))
-      if (!IsValidNeighborSANSA(it->lastHello, it->interface, true, m_state.GetSatNodeValue()) )
+      if (!IsValidNeighborSANSA(it->lastHello, it->interface, true, m_state.GetSatNodeValue(), dstAddr, it->theMainAddr ))
         {
 	  //do not consider switch off ifaces but do not forge to update the counter
 	  neighbor_recheck_index ++;
@@ -3999,7 +4005,7 @@ RoutingProtocol::AlternativeIfaceSelectionSANSA (Ptr<Ipv4> m_ipv4, uint32_t usef
     distance_tmp.push_back(distances[i]);*/
   for (NeighborSet::iterator it = neighbor.begin(); it!= neighbor.end(); it++)
     {
-      if (IsValidNeighborSANSA(it->lastHello, it->interface, true, m_state.GetSatNodeValue()) )
+      if (IsValidNeighborSANSA(it->lastHello, it->interface, true, m_state.GetSatNodeValue(), dstAddr, it->theMainAddr ) )
         { //we put the SatFlow flag to true to consider also satellite, in fact the idea
           //is that in these conditions we offload the traffic to satellite
 	  distance_tmp.push_back(LocationList::GetHops(it->theMainAddr, dstAddr, true));
@@ -4018,7 +4024,7 @@ RoutingProtocol::AlternativeIfaceSelectionSANSA (Ptr<Ipv4> m_ipv4, uint32_t usef
        it != neighbor.end(); it++)
     {
       //if (!m_ipv4->IsUp(it->interface))
-	if (!IsValidNeighborSANSA(it->lastHello, it->interface, true, m_state.GetSatNodeValue()) )
+	if (!IsValidNeighborSANSA(it->lastHello, it->interface, true, m_state.GetSatNodeValue(), dstAddr, it->theMainAddr ))
         {
 	  //do not consider switch off ifaces but do not forge to update the counter
 	  neighbor_recheck_index ++;
