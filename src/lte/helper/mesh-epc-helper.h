@@ -85,7 +85,9 @@ public:
   virtual Ipv4Address GetUeDefaultGatewayAddress ();
 
   // creation of mesh topology amongst enbs and satellite nodes
-  void AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix, std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat, Ipv4ListRoutingHelper routingList /*NodeContainer satellites*/);
+  void AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix,
+                              std::vector<bool> terrestrialEPC, std::vector<bool> terrestrialSat,
+                              Ipv4ListRoutingHelper routingList, uint32_t meshQ = 0);
 
   static void TraceAndDebug (Ptr<NetDevice> first, Ptr<NetDevice> second);
 

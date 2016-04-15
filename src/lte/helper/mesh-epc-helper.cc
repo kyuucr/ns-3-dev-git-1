@@ -68,7 +68,7 @@ Fail (const std::string &name, Ptr<const Packet> p)
   NS_FATAL_ERROR (name << " SPOTTED A DROP!!");
 }
 
-
+/*
 static std::string
 PrintPacket (Ptr<Packet> p)
 {
@@ -141,16 +141,16 @@ TraceRx (const std::string &name, Ptr<const Packet> p)
     NS_LOG_DEBUG (Simulator::Now ().GetSeconds () << " [RX] " <<
                   name << s);
 }
-
+*/
 void
 MeshEpcHelper::TraceAndDebug (Ptr<NetDevice> first, Ptr<NetDevice> second)
 {
-  first->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName (first->GetNode ())));
-  first->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName (first->GetNode ())));
+  //first->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName (first->GetNode ())));
+  //first->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName (first->GetNode ())));
   first->TraceConnectWithoutContext ("MacTxDrop", MakeBoundCallback (&Fail, Names::FindName (first->GetNode ())));
 
-  second->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName (second->GetNode ())));
-  second->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName (second->GetNode ())));
+  //second->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName (second->GetNode ())));
+  //second->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName (second->GetNode ())));
   second->TraceConnectWithoutContext ("MacTxDrop", MakeBoundCallback (&Fail, Names::FindName (second->GetNode ())));
 }
 
@@ -283,7 +283,7 @@ MeshEpcHelper::DoDispose ()
 void
 MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vector<int> > terrestrialConMatrix,
                                       std::vector<bool> terrestrialEpc, std::vector<bool> terrestrialSat,
-                                      Ipv4ListRoutingHelper routingList)
+                                      Ipv4ListRoutingHelper routingList, uint32_t meshQ)
 {
   NS_LOG_FUNCTION (this);
 
@@ -471,10 +471,21 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
 
   uint32_t linkCount = 0;
   p2phterr.SetDeviceAttribute ("DataRate", DataRateValue (m_s1uLinkDataRateTerrestrial));
-  p2phterr.SetQueue("ns3::DropTailQueue",
-                    "Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES),
-                    "MaxBytes", UintegerValue ((m_s1uLinkDataRateTerrestrial.GetBitRate() / 8)*
-                                              2*m_s1uLinkDelayTerrestrial.GetSeconds()));
+
+  if (meshQ == 0)
+    { // No meshQ, stick to BDP
+      p2phterr.SetQueue("ns3::DropTailQueue",
+                        "Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES),
+                        "MaxBytes", UintegerValue ((m_s1uLinkDataRateTerrestrial.GetBitRate() / 8)*
+                                                  2*m_s1uLinkDelayTerrestrial.GetSeconds()));
+    }
+  else
+    { // Manually passed meshQ (in packets)
+      p2phterr.SetQueue("ns3::DropTailQueue",
+                        "Mode", EnumValue (DropTailQueue::QUEUE_MODE_PACKETS),
+                        "MaxPackets", UintegerValue (meshQ));
+    }
+
   for (size_t i = 0; i < terrestrialConMatrix.size (); i++)
     {
       for (size_t j = 0; j < terrestrialConMatrix[i].size (); j++)
