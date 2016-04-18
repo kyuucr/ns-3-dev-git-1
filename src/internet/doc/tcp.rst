@@ -201,7 +201,7 @@ to such value.
    cWnd <- (1-b(cWnd))cWnd
 
 The lookup table for the function b() is taken from the same RFC.
-More information at: http://dl.acm.org/citation.cfm?id=2756518
+More informations at: http://dl.acm.org/citation.cfm?id=2756518
 
 Hybla
 ^^^^^
@@ -215,7 +215,7 @@ This coefficient is used to calculate both the slow start threshold
 and the congestion window when in slow start and in congestion avoidance,
 respectively.
 
-More information at: http://dl.acm.org/citation.cfm?id=2756518
+More informations at: http://dl.acm.org/citation.cfm?id=2756518
 
 Westwood
 ^^^^^^^^
@@ -226,13 +226,75 @@ bandwidth and use the estimated value to adjust the cwnd.·
 While Westwood performs the bandwidth sampling every ACK reception,·
 Westwood+ samples the bandwidth every RTT.
 
-More information at: http://dl.acm.org/citation.cfm?id=381704 and
+More informations at: http://dl.acm.org/citation.cfm?id=381704 and
 http://dl.acm.org/citation.cfm?id=2512757
+
+Vegas
+^^^^^
+TCP Vegas is a pure delay-based congestion control algorithm implementing a
+proactive scheme that tries to prevent packet drops by maintaining a small
+backlog at the bottleneck queue. Vegas continuously samples the RTT and computes
+the actual throughput a connection achieves using Equation (1) and compares it
+with the expected throughput calculated in Equation (2). The difference between
+these 2 sending rates in Equation (3) reflects the amount of extra packets being
+queued at the bottleneck.
+
+  actual = cwnd / RTT (1)
+  expected = cwnd / BaseRTT (2)
+  diff = expected - actual (3)
+
+To avoid congestion, Vegas linearly increases/decreases its congestion window
+to ensure the diff value fall between the 2 predefined thresholds, alpha and
+beta. diff and another threshold, gamma, are used to determine when Vegas
+should change from its slow-start mode to linear increase/decrease mode.
+Following the implementation of Vegas in Linux, we use 2, 4, and 1 as the
+default values of alpha, beta, and gamma, respectively, but they can be
+modified through the Attribute system.
+
+More informations at: http://dx.doi.org/10.1109/49.464716
 
 Validation
 ++++++++++
 
-Several TCP validation test results can be found in the
+The following tests are found in the ``src/internet/test`` directory.  In
+general, TCP tests inherit from a class called :cpp:class:`TcpGeneralTest`,
+which provides common operations to set up test scenarios involving TCP
+objects.  For more information on how to write new tests, see the
+section below on :ref:`Writing-tcp-tests`.
+
+* **tcp:** Basic transmission of string of data from client to server
+* **tcp-bytes-in-flight-test:** TCP correctly estimates bytes in flight under loss conditions
+* **tcp-cong-avoid-test:** TCP congestion avoidance for different packet sizes
+* **tcp-datasentcb:** Check TCP's 'data sent' callback
+* **tcp-endpoint-bug2211-test:** A test for an issue that was causing stack overflow
+* **tcp-fast-retr-test:** Fast Retransmit testing
+* **tcp-header:** Unit tests on the TCP header
+* **tcp-highspeed-test:** Unit tests on the Highspeed congestion control
+* **tcp-hybla-test:** Unit tests on the Hybla congestion control
+* **tcp-vegas-test:** Unit tests on the Vegas congestion control
+* **tcp-option:** Unit tests on TCP options
+* **tcp-pkts-acked-test:** Unit test the number of time that PktsAcked is called
+* **tcp-rto-test:** Unit test behavior after a RTO timeout occurs
+* **tcp-rtt-estimation-test:** Check RTT calculations, including retransmission cases
+* **tcp-slow-start-test:** Check behavior of slow start
+* **tcp-timestamp:** Unit test on the timestamp option
+* **tcp-wscaling:** Unit test on the window scaling option
+* **tcp-zero-window-test:** Unit test persist behavior for zero window conditions
+
+Several tests have dependencies outside of the ``internet`` module, so they
+are located in a system test directory called ``src/test/ns3tcp``.  Three
+of these six tests involve use of the Network Simulation Cradle, and are
+disabled if NSC is not enabled in the build.  
+
+* **ns3-tcp-cwnd:** Check to see that ns-3 TCP congestion control works against liblinux2.6.26.so implementation
+* **ns3-tcp-interoperability:** Check to see that ns-3 TCP interoperates with liblinux2.6.26.so implementation
+* **ns3-tcp-loss:** Check behavior of ns-3 TCP upon packet losses
+* **nsc-tcp-loss:** Check behavior of NSC TCP upon packet losses
+* **ns3-tcp-no-delay:** Check that ns-3 TCP Nagle"s algorithm works correctly and that it can be disabled
+* **ns3-tcp-socket:** Check that ns-3 TCP successfully transfers an application data write of various sizes
+* **ns3-tcp-state:** Check the operation of the TCP state machine for several cases
+ 
+Several TCP validation test results can also be found in the
 `wiki page <http://www.nsnam.org/wiki/New_TCP_Socket_Architecture>`_ 
 describing this implementation.
 

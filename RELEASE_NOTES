@@ -10,6 +10,33 @@ Consult the file CHANGES.html for more detailed information about changed
 API and behavior across ns-3 releases.
 
 Release 3-dev
+=============
+
+Availability
+------------
+This release is not yet available.
+
+Supported platforms
+-------------------
+This release has been tested on the following platforms:
+
+New user-visible features
+-------------------------
+- (internet) Added TCP Vegas congestion control algorithm
+
+Bugs fixed
+----------
+- Bug 2057 - ARP and Ndisc caches should be updated by receiving valid L3 packets
+- Bug 2346 - SixLowPan ConpressionThreshold can be violated.
+- Bug 2347 - LrWpan Ascii traces are hooked to the wrong traces.
+- Bug 2353 - TCP Vegas implementation
+
+Known issues
+------------
+In general, known issues are tracked on the project tracker available
+at http://www.nsnam.org/bugzilla/
+
+Release 3.25
 ============
 
 Availability
