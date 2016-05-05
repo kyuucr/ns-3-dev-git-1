@@ -51,7 +51,7 @@ if [[ "${bpQ}" == "" ]]; then
   exit 1
 fi
 
-args="--simTime=500.0s ${ssth} --replication=0 --meshQ=${bpQ} \
+args="--simTime=1000.0s ${ssth} --replication=0 --meshQ=${bpQ} \
       --num-ues=${ue} --distance=60.0 ${routString} \
       --tcp=ns3::${tcp} --out=${output} --app=${app} \
       --ftpBytes=10000000 --scenario=${scenario}"

@@ -15,9 +15,9 @@ python2 ./waf
 function get_background_traffic
 {
   cbr_rate=$1
-  echo -en "[ENB5|ENB1|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
-  echo -en "[ENB15|ENB11|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
-  echo -en "[ENB25|ENB21|4.0s|500s|cbr${cbr_rate}|ns3::UdpSocketFactory]\n"
+  echo -en "[ENB5|ENB1|1.0s|1000s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
+  echo -en "[ENB15|ENB11|1.0s|1000s|cbr${cbr_rate}|ns3::UdpSocketFactory]#"
+  echo -en "[ENB25|ENB21|1.0s|1000s|cbr${cbr_rate}|ns3::UdpSocketFactory]\n"
 }
 
 bp_queue=340

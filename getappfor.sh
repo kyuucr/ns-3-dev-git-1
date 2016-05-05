@@ -20,7 +20,9 @@ background=$3
 
 local_app=""
 for i in $(seq 1 ${flows}); do
-  s=$(echo "4 + ($i * 0.05)" | bc)
+  m=$(echo "((${i}-1) / 25) + 1" | bc)
+  s=$(echo "(${m}*4) + ((${i}-(25*(${m}-1))) * 0.05)" | bc)
+
   first=""
   if [ "${style}" = "download" ]; then
     first="remote|UE${i}"
