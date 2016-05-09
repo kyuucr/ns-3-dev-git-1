@@ -856,6 +856,11 @@ protected:
   void LimitedTransmit ();
 
   /**
+   * \brief Enter the FastRetransmit, and retransmit the head
+   */
+  void FastRetransmit ();
+
+  /**
    * \brief Call Retransmit() upon RTO event
    */
   virtual void ReTxTimeout (void);
