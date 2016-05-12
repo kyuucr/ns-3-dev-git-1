@@ -2635,14 +2635,7 @@ TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool with
 
   if (m_retxEvent.IsExpired ())
     {
-      // Schedules retransmit timeout. If this is a retransmission, double the timer
-
-      if (isRetransmission)
-        { // This is a retransmit
-          // RFC 6298, clause 2.5
-          Time doubledRto = m_rto + m_rto;
-          m_rto = Min (doubledRto, Time::FromDouble (60,  Time::S));
-        }
+      // Schedules retransmit timeout.
 
       NS_LOG_LOGIC (this << " SendDataPacket Schedule ReTxTimeout at time " <<
                     Simulator::Now ().GetSeconds () << " to expire at time " <<
@@ -2675,7 +2668,7 @@ TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool with
   if (seq + sz > m_tcb->m_highTxMark)
     {
       Simulator::ScheduleNow (&TcpSocketBase::NotifyDataSent, this,
-                             (seq + sz - m_tcb->m_highTxMark.Get ()));
+                              (seq + sz - m_tcb->m_highTxMark.Get ()));
     }
   // Update highTxMark
   m_tcb->m_highTxMark = std::max (seq + sz, m_tcb->m_highTxMark.Get ());
@@ -2707,10 +2700,8 @@ TcpSocketBase::UpdateRttHistory (const SequenceNumber32 &seq, uint32_t sz,
     }
 }
 
-/* Send as much pending data as possible according to the Tx window. Note that
- *  this function did not implement the PSH flag
- */
-bool
+// Note that this function did not implement the PSH flag
+uint32_t
 TcpSocketBase::SendPendingData (bool withAck)
 {
   NS_LOG_FUNCTION (this << withAck);
@@ -2723,47 +2714,98 @@ TcpSocketBase::SendPendingData (bool withAck)
       NS_LOG_INFO ("TcpSocketBase::SendPendingData: No endpoint; m_shutdownSend=" << m_shutdownSend);
       return false; // Is this the right way to handle this condition?
     }
+
   uint32_t nPacketsSent = 0;
-  while (m_txBuffer->SizeFromSequence (m_tcb->m_nextTxSequence))
+  uint32_t availableWindow = AvailableWindow ();
+
+  // RFC 6675, Section (C)
+  // If cwnd - pipe >= 1 SMSS, the sender SHOULD transmit one or more
+  // segments as follows:
+  // (NOTE: We check > 0, and do the checks for segmentSize in the following
+  // else branch to control silly window syndrome and Nagle)
+  while (availableWindow > 0)
     {
-      uint32_t w = AvailableWindow (); // Get available window size
-      // Stop sending if we need to wait for a larger Tx window (prevent silly window syndrome)
-      if (w < m_tcb->m_segmentSize && m_txBuffer->SizeFromSequence (m_tcb->m_nextTxSequence) > w)
+      if (m_tcb->m_congState == TcpSocketState::CA_OPEN
+          && m_state == TcpSocket::FIN_WAIT_1)
         {
-          NS_LOG_LOGIC ("Preventing Silly Window Syndrome. Wait to send.");
-          break; // No more
-        }
-      // Nagle's algorithm (RFC896): Hold off sending if there is unacked data
-      // in the buffer and the amount of data to send is less than one segment
-      if (!m_noDelay && UnAckDataCount () > 0
-          && m_txBuffer->SizeFromSequence (m_tcb->m_nextTxSequence) < m_tcb->m_segmentSize)
-        {
-          NS_LOG_LOGIC ("Invoking Nagle's algorithm. Wait to send.");
+          NS_LOG_INFO ("FIN_WAIT and OPEN state; no data to transmit");
           break;
         }
-      NS_LOG_LOGIC ("TcpSocketBase " << this << " SendPendingData" <<
-                    " w " << w <<
-                    " rxwin " << m_rWnd <<
-                    " segsize " << m_tcb->m_segmentSize <<
-                    " nextTxSeq " << m_tcb->m_nextTxSequence <<
-                    " highestRxAck " << m_txBuffer->HeadSequence () <<
-                    " pd->Size " << m_txBuffer->Size () <<
-                    " pd->SFS " << m_txBuffer->SizeFromSequence (m_tcb->m_nextTxSequence));
+      // (C.1) The scoreboard MUST be queried via NextSeg () for the
+      //       sequence number range of the next segment to transmit (if
+      //       any), and the given segment sent.  If NextSeg () returns
+      //       failure (no data to send), return without sending anything
+      //       (i.e., terminate steps C.1 -- C.5).
+      SequenceNumber32 next;
+      if (!m_txBuffer->NextSeg (&next, m_retxThresh, m_tcb->m_segmentSize))
+        {
+          return nPacketsSent;
+        }
+      else
+        {
+          // It's time to transmit, but before do silly window and Nagle's check
+          uint32_t availableData = m_txBuffer->SizeFromSequence (next);
 
-      NS_LOG_DEBUG ("Window: " << w <<
-                    " cWnd: " << m_tcb->m_cWnd <<
-                    " unAck: " << UnAckDataCount ());
+          // Stop sending if we need to wait for a larger Tx window (prevent silly window syndrome)
+          if (availableWindow < m_tcb->m_segmentSize &&  availableData > availableWindow)
+            {
+              NS_LOG_LOGIC ("Preventing Silly Window Syndrome. Wait to send.");
+              break; // No more
+            }
+          // Nagle's algorithm (RFC896): Hold off sending if there is unacked data
+          // in the buffer and the amount of data to send is less than one segment
+          if (!m_noDelay && UnAckDataCount () > 0 && availableData < m_tcb->m_segmentSize)
+            {
+              NS_LOG_DEBUG ("Invoking Nagle's algorithm for seq " << next <<
+                            ", SFS: " << m_txBuffer->SizeFromSequence (next) <<
+                            ". Wait to send.");
+              break;
+            }
 
-      uint32_t s = std::min (w, m_tcb->m_segmentSize);  // Send no more than window
-      uint32_t sz = SendDataPacket (m_tcb->m_nextTxSequence, s, withAck);
-      nPacketsSent++;                             // Count sent this loop
-      m_tcb->m_nextTxSequence += sz;                     // Advance next tx sequence
+          m_tcb->m_nextTxSequence = next;
+          uint32_t s = std::min (availableWindow, m_tcb->m_segmentSize);
+
+          // (C.2) If any of the data octets sent in (C.1) are below HighData,
+          //       HighRxt MUST be set to the highest sequence number of the
+          //       retransmitted segment unless NextSeg () rule (4) was
+          //       invoked for this retransmission.
+          // (C.3) If any of the data octets sent in (C.1) are above HighData,
+          //       HighData must be updated to reflect the transmission of
+          //       previously unsent data.
+          //
+          // These steps are done in m_txBuffer with the tags.
+          uint32_t sz = SendDataPacket (m_tcb->m_nextTxSequence, s, withAck);
+
+          NS_LOG_LOGIC (" rxwin " << m_rWnd <<
+                        " segsize " << m_tcb->m_segmentSize <<
+                        " highestRxAck " << m_txBuffer->HeadSequence () <<
+                        " pd->Size " << m_txBuffer->Size () <<
+                        " pd->SFS " << m_txBuffer->SizeFromSequence (m_tcb->m_nextTxSequence));
+
+          NS_LOG_DEBUG ("cWnd: " << m_tcb->m_cWnd <<
+                        " total unAck: " << UnAckDataCount () <<
+                        " sent seq " << m_tcb->m_nextTxSequence <<
+                        " size " << sz);
+
+          ++nPacketsSent;
+        }
+
+      // (C.4) The estimate of the amount of data outstanding in the
+      //       network must be updated by incrementing pipe by the number
+      //       of octets transmitted in (C.1).
+      //
+      // Done in BytesInFlight, inside AvailableWindow.
+      availableWindow = AvailableWindow ();
+
+      // (C.5) If cwnd - pipe >= 1 SMSS, return to (C.1)
+      // loop again!
     }
+
   if (nPacketsSent > 0)
     {
       NS_LOG_DEBUG ("SendPendingData sent " << nPacketsSent << " segments");
     }
-  return (nPacketsSent > 0);
+  return nPacketsSent;
 }
 
 uint32_t
@@ -2982,10 +3024,6 @@ TcpSocketBase::NewAck (SequenceNumber32 const& ack, bool resetRTO)
   if (GetTxAvailable () > 0)
     {
       NotifySend (GetTxAvailable ());
-    }
-  if (ack > m_tcb->m_nextTxSequence)
-    {
-      m_tcb->m_nextTxSequence = ack; // If advanced
     }
   if (m_txBuffer->Size () == 0 && m_state != FIN_WAIT_1 && m_state != CLOSING)
     { // No retransmit timer if no data to retransmit
