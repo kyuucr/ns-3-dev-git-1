@@ -273,6 +273,7 @@ def build(bld):
         'test/rtt-test.cc',
         'test/codel-queue-test-suite.cc',
         'test/tcp-tx-buffer-test.cc',
+        'test/tcp-rx-buffer-test.cc',
         'test/tcp-endpoint-bug2211.cc',
         'test/tcp-datasentcb-test.cc',
         'test/ipv4-rip-test.cc',
