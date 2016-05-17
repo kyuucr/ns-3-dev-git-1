@@ -218,6 +218,7 @@ int main (int argc, char *argv[])
   bool flow_monitor = false;
   bool pcap = false;
   std::string queue_type = "ns3::DropTailQueue";
+  bool sack = true;
 
 
   CommandLine cmd;
@@ -239,6 +240,7 @@ int main (int argc, char *argv[])
   cmd.AddValue ("flow_monitor", "Enable flow monitor", flow_monitor);
   cmd.AddValue ("pcap_tracing", "Enable or disable PCAP tracing", pcap);
   cmd.AddValue ("queue_type", "Queue type for gateway (e.g. ns3::CoDelQueue)", queue_type);
+  cmd.AddValue ("sack", "Enable or disable SACK option", sack);
   cmd.Parse (argc, argv);
 
   SeedManager::SetSeed (1);
@@ -268,6 +270,7 @@ int main (int argc, char *argv[])
   // 4 MB of TCP buffer
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1 << 21));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1 << 21));
+  Config::SetDefault ("ns3::TcpSocketBase::SACK", BooleanValue (sack));
 
   // Select TCP variant
   if (transport_prot.compare ("TcpNewReno") == 0)
