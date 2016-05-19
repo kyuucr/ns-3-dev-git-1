@@ -449,6 +449,7 @@ private:
 
   TracedValue<SequenceNumber32> m_firstByteSeq; //!< Sequence number of the first byte in data (SND.UNA)
 
+  std::pair <SequenceNumber32, PacketList::const_iterator> m_highestSacked; //!< highest SACKed block
 };
 
 std::ostream & operator<< (std::ostream & os, TcpTxBuffer const & tcpTxBuf);

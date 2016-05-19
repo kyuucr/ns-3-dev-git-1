@@ -114,8 +114,12 @@ TcpTxBuffer::GetTypeId (void)
  * initialized below is insignificant.
  */
 TcpTxBuffer::TcpTxBuffer (uint32_t n)
-  : m_maxBuffer (32768), m_size (0), m_sentSize (0), m_firstByteSeq (n)
+  : m_maxBuffer (32768),
+    m_size (0),
+    m_sentSize (0),
+    m_firstByteSeq (n)
 {
+  m_highestSacked = std::make_pair (m_firstByteSeq.Get (), m_sentList.begin ());
 }
 
 TcpTxBuffer::~TcpTxBuffer (void)
@@ -162,6 +166,11 @@ void
 TcpTxBuffer::SetHeadSequence (const SequenceNumber32& seq)
 {
   NS_LOG_FUNCTION (this << seq);
+  if (m_highestSacked.first == m_firstByteSeq.Get ())
+    {
+      m_highestSacked.first = seq;
+    }
+
   m_firstByteSeq = seq;
 }
 
@@ -292,6 +301,13 @@ TcpTxBuffer::GetNewSegment (uint32_t numBytes)
 
   m_appList.erase (it);
   m_sentList.insert (m_sentList.end (), item);
+
+  if (m_sentSize == 0)
+    {
+      // Update the reference to the beginning of the sent list
+      m_highestSacked = std::make_pair (m_firstByteSeq.Get (), m_sentList.begin ());
+    }
+
   m_sentSize += item->m_packet->GetSize ();
 
   return item;
@@ -585,6 +601,12 @@ TcpTxBuffer::DiscardUpTo (const SequenceNumber32& seq)
         }
     }
 
+  if (m_highestSacked.first <= m_firstByteSeq)
+    {
+      // Update the reference to the beginning of the sent list
+      m_highestSacked = std::make_pair (m_firstByteSeq.Get (), m_sentList.begin ());
+    }
+
   NS_LOG_DEBUG ("Discarded up to " << seq);
   NS_LOG_LOGIC ("Buffer status after discarding data " << *this);
 }
@@ -630,6 +652,11 @@ TcpTxBuffer::Update (const TcpOptionSack::SackList &list)
                                ", checking sentList for block " << beginOfCurrentPacket <<
                                ";" << beginOfCurrentPacket + current->GetSize () <<
                                "], found in the sackboard, sacking");
+                  if (m_highestSacked.first <= beginOfCurrentPacket)
+                    {
+                      // Update the reference to the beginning of the sent list
+                      m_highestSacked = std::make_pair (beginOfCurrentPacket, item_it);
+                    }
                 }
               modified = true;
             }
@@ -656,9 +683,9 @@ Ptr<const TcpOptionSack>
 TcpTxBuffer::CraftSackOption (const SequenceNumber32 &seq, uint8_t available) const
 {
   NS_LOG_FUNCTION (this);
-  PacketList::const_iterator it = m_sentList.begin ();
+  PacketList::const_iterator it = m_highestSacked.second;
   Ptr<TcpOptionSack> sackBlock = 0;
-  SequenceNumber32 beginOfCurrentPacket = m_firstByteSeq;
+  SequenceNumber32 beginOfCurrentPacket = m_highestSacked.first;
   Ptr<Packet> current;
   TcpTxItem *item;
 
@@ -941,6 +968,9 @@ TcpTxBuffer::ResetScoreboard ()
       (*it)->m_sacked = false;
       beginOfCurrentPkt += (*it)->m_packet->GetSize ();
     }
+
+  // After a merge, we lose our custom pointers. Reset them
+  m_highestSacked = std::make_pair (m_firstByteSeq.Get (), m_sentList.begin ());
 }
 
 void
@@ -970,6 +1000,8 @@ TcpTxBuffer::ResetSentList ()
     {
       m_sentSize = 0;
     }
+
+  m_highestSacked = std::make_pair (m_firstByteSeq.Get (), m_sentList.begin ());
 }
 
 void
@@ -983,6 +1015,12 @@ TcpTxBuffer::ResetLastSegmentSent ()
       m_sentList.pop_back ();
       m_sentSize -= item->m_packet->GetSize ();
       m_appList.insert (m_appList.begin (), item);
+
+      if (m_highestSacked.first > m_firstByteSeq + m_sentSize)
+        {
+          // Lost the pointer to highestSack
+          m_highestSacked = std::make_pair (m_firstByteSeq.Get (), m_sentList.begin ());
+        }
     }
 }
 
