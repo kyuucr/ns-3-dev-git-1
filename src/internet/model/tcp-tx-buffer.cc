@@ -788,6 +788,12 @@ TcpTxBuffer::IsLost (const SequenceNumber32 &seq, const PacketList::const_iterat
           return true;
         }
 
+      if (beginOfCurrentPacket > m_highestSacked.first)
+        {
+          // If there's no segments sacked ahed .. just stop.
+          return false;
+        }
+
       if (item->m_sacked)
         {
           NS_LOG_DEBUG ("Segment found to be SACKed, increasing counter and bytes by " <<
