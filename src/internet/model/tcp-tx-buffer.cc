@@ -863,27 +863,30 @@ TcpTxBuffer::NextSeg (SequenceNumber32 *seq, uint32_t dupThresh,
   bool isSeqPerRule3Valid = false;
   SequenceNumber32 beginOfCurrentPkt = m_firstByteSeq;
 
-  for (it = m_sentList.begin (); it != m_sentList.end (); ++it)
+  if (m_highestSacked.first > m_firstByteSeq)
     {
-      item = *it;
-
-      // Condition 1.a , 1.b , and 1.c
-      if (item->m_retrans == false && item->m_sacked == false)
+      for (it = m_sentList.begin (); it != m_sentList.end (); ++it)
         {
-          if (IsLost (beginOfCurrentPkt, it, dupThresh, segmentSize))
-            {
-              *seq = beginOfCurrentPkt;
-              return true;
-            }
-          else if (seqPerRule3.GetValue () == 0)
-            {
-              isSeqPerRule3Valid = true;
-              seqPerRule3 = beginOfCurrentPkt;
-            }
-        }
+          item = *it;
 
-      // Nothing found, iterate
-      beginOfCurrentPkt += item->m_packet->GetSize ();
+          // Condition 1.a , 1.b , and 1.c
+          if (item->m_retrans == false && item->m_sacked == false)
+            {
+              if (IsLost (beginOfCurrentPkt, it, dupThresh, segmentSize))
+                {
+                  *seq = beginOfCurrentPkt;
+                  return true;
+                }
+              else if (seqPerRule3.GetValue () == 0)
+                {
+                  isSeqPerRule3Valid = true;
+                  seqPerRule3 = beginOfCurrentPkt;
+                }
+            }
+
+          // Nothing found, iterate
+          beginOfCurrentPkt += item->m_packet->GetSize ();
+        }
     }
 
   /* (2) If no sequence number 'S2' per rule (1) exists but there
