@@ -118,7 +118,7 @@ public:
    * \param newState new congestion state to which the TCP is going to switch
    */
   virtual void CongestionStateSet (Ptr<TcpSocketState> tcb,
-                                   const TcpSocketState::TcpCongState_t newstate)
+                                   const TcpSocketState::TcpCongState_t newState)
   {
   }
 
