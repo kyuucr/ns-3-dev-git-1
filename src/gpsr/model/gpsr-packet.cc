@@ -180,7 +180,7 @@ operator<< (std::ostream & os, HelloHeader const & h)
 bool
 HelloHeader::operator== (HelloHeader const & o) const
 {
-  return (m_originPosx == o.m_originPosx && m_originPosy == m_originPosy);
+  return (m_originPosx == o.m_originPosx && m_originPosy == o.m_originPosy);
 }
 
 
@@ -282,7 +282,7 @@ operator<< (std::ostream & os, PositionHeader const & h)
 bool
 PositionHeader::operator== (PositionHeader const & o) const
 {
-  return (m_dstPosx == o.m_dstPosx && m_dstPosy == m_dstPosy && m_updated == o.m_updated && m_recPosx == o.m_recPosx && m_recPosy == o.m_recPosy && m_inRec == o.m_inRec && m_lastPosx == o.m_lastPosx && m_lastPosy == o.m_lastPosy);
+  return (m_dstPosx == o.m_dstPosx && m_dstPosy == o.m_dstPosy && m_updated == o.m_updated && m_recPosx == o.m_recPosx && m_recPosy == o.m_recPosy && m_inRec == o.m_inRec && m_lastPosx == o.m_lastPosx && m_lastPosy == o.m_lastPosy);
 }
 
 

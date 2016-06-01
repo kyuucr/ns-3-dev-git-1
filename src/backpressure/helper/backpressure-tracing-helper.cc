@@ -476,7 +476,6 @@ BackpressureWifiTraceSink::OpenPacketStats (std::string const &name)
 void
 BackpressureWifiTraceSink::WriteStats ()
 {
-  NS_ABORT_MSG_UNLESS (this, "function called with null this pointer, now=" << Now () );
   NS_LOG_LOGIC ("[BackpressureWifiTraceSink]: Writing Stats now=" <<Simulator::Now() );
 
   if (m_do_pktStats)
