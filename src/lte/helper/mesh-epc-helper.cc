@@ -62,98 +62,6 @@ NS_LOG_COMPONENT_DEFINE ("MeshEpcHelper");
 
 NS_OBJECT_ENSURE_REGISTERED (MeshEpcHelper);
 
-static void
-Fail (const std::string &name, Ptr<const Packet> p)
-{
-  NS_FATAL_ERROR (name << " SPOTTED A DROP!!");
-}
-
-/*
-static std::string
-PrintPacket (Ptr<Packet> p)
-{
-  Ipv4Header ipv4;
-  TcpHeader tcp;
-  PppHeader ppp;
-  UdpHeader udp;
-  GtpuHeader gtpu;
-  uint32_t size;
-
-  size = p->RemoveHeader (ppp);
-  NS_ASSERT (size > 0);
-
-  size = p->RemoveHeader (ipv4);
-  NS_ASSERT (size > 0);
-
-
-  std::stringstream ret;
-
-
-  if (ipv4.GetProtocol () == UDP_PROT_NUMBER)
-    {
-      size = p->RemoveHeader (udp);
-
-      if (udp.GetSourcePort () == 698)
-        {
-          return "";
-        }
-
-      size = p->RemoveHeader (gtpu);
-      if (size > 0)
-        {
-          size = p->RemoveHeader (ipv4);
-          NS_ASSERT (size > 0);
-          size = p->RemoveHeader (tcp);
-          NS_ASSERT (size > 0);
-          ret << " From: " << ipv4.GetSource () << " to: " << ipv4.GetDestination () <<
-            " seq: " << tcp.GetSequenceNumber () << " ack: " << tcp.GetAckNumber () <<
-            " size: " << p->GetSize () << " flags: " << TcpHeader::FlagsToString (tcp.GetFlags ());
-        }
-    }
-  else if (ipv4.GetProtocol () == TCP_PROT_NUMBER)
-    {
-      size = p->RemoveHeader (tcp);
-      NS_ASSERT (size > 0);
-      ret << " From: " << ipv4.GetSource () << " to: " << ipv4.GetDestination () <<
-        " seq: " << tcp.GetSequenceNumber () << " ack: " << tcp.GetAckNumber () <<
-        " size: " << p->GetSize () << " flags: " << TcpHeader::FlagsToString (tcp.GetFlags ());
-    }
-
-  return ret.str ();
-}
-
-static void
-TraceTx (const std::string &name, Ptr<const Packet> p)
-{
-  std::string s = PrintPacket (p->Copy ());
-
-  if (!s.empty ())
-    NS_LOG_DEBUG (Simulator::Now ().GetSeconds () << " [TX] " <<
-                  name << s);
-}
-
-static void
-TraceRx (const std::string &name, Ptr<const Packet> p)
-{
-  std::string s = PrintPacket (p->Copy ());
-
-  if (!s.empty ())
-    NS_LOG_DEBUG (Simulator::Now ().GetSeconds () << " [RX] " <<
-                  name << s);
-}
-*/
-void
-MeshEpcHelper::TraceAndDebug (Ptr<NetDevice> first, Ptr<NetDevice> second)
-{
-  //first->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName (first->GetNode ())));
-  //first->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName (first->GetNode ())));
-  first->TraceConnectWithoutContext ("MacTxDrop", MakeBoundCallback (&Fail, Names::FindName (first->GetNode ())));
-
-  //second->TraceConnectWithoutContext ("MacTx", MakeBoundCallback (&TraceTx, Names::FindName (second->GetNode ())));
-  //second->TraceConnectWithoutContext ("MacRx", MakeBoundCallback (&TraceRx, Names::FindName (second->GetNode ())));
-  second->TraceConnectWithoutContext ("MacTxDrop", MakeBoundCallback (&Fail, Names::FindName (second->GetNode ())));
-}
-
 MeshEpcHelper::MeshEpcHelper ()
   : m_gtpuUdpPort (2152)    // fixed by the standard
 {
@@ -368,7 +276,6 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
           if (bpN !=NULL)
             {
               bpN->SetInfoInterfaces (interface, terrestrialEpc[enb->GetId ()-2]);
-              TraceAndDebug (enbDev, sgwDev);
             }
           pTop = sgwDev->GetObject<PointToPointNetDevice>();
           interface = pTop->GetIfIndex ();
@@ -523,8 +430,6 @@ MeshEpcHelper::AddHybridMeshBackhaul (NodeContainer enbs, std::vector<std::vecto
                   if (bpN !=NULL)
                     {
                       bpN->SetInfoInterfaces (interface, terrestrialConMatrix[i][j]);
-
-                      TraceAndDebug (n_devs.Get (0), n_devs.Get (1));
                     }
                 }
               pTop = n_devs.Get (1)->GetObject<PointToPointNetDevice>();

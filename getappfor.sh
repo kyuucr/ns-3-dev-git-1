@@ -31,9 +31,9 @@ for i in $(seq 1 ${flows}); do
   fi
 
   if [ "${local_app}" = "" ]; then
-    local_app="[${first}|${s}|70s|ftp|ns3::TcpSocketFactory]"
+    local_app="[${first}|${s}|100s|ftp|ns3::TcpSocketFactory]"
   else
-    local_app="[${first}|${s}|70s|ftp|ns3::TcpSocketFactory]#${local_app}"
+    local_app="[${first}|${s}|100s|ftp|ns3::TcpSocketFactory]#${local_app}"
   fi
 done
 

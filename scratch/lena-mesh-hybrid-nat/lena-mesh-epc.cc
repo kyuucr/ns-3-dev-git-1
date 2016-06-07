@@ -274,6 +274,7 @@ QueueTrace (UintDataSet *queueSet, uint32_t length,
 static void
 NormalCloseCb (Ptr<Socket> s)
 {
+  NS_ASSERT (activeSocket > 0);
   activeSocket -= 1;
 
   if (activeSocket == 0)
@@ -285,13 +286,9 @@ NormalCloseCb (Ptr<Socket> s)
 static void
 ErrorCloseCb (Ptr<Socket> s)
 {
+  NS_ASSERT (activeSocket > 0);
   activeSocket -= 1;
   errorSocket += 1;
-
-  if (activeSocket == 0)
-    {
-      Simulator::Stop();
-    }
 }
 
 static Ptr<Socket>
@@ -1050,7 +1047,7 @@ main (int argc, char *argv[])
       // UE coordinates
       ue_coords_file_name = "scratch/lena-mesh-hybrid-nat/ue_coords_3x3a.txt";
     }
-  else if (scenario == 1)
+  else if (scenario == 1 || scenario == 3)
     {
       // connectivity matrix file
       adj_mat_file_name = "scratch/lena-mesh-hybrid-nat/adjacency_matrix_5x5.txt";
@@ -1093,6 +1090,7 @@ main (int argc, char *argv[])
 
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", StringValue (tcpCong));
   Config::SetDefault ("ns3::TcpSocket::InitialSlowStartThreshold", UintegerValue (initialSsTh));
+  Config::SetDefault ("ns3::TcpSocketBase::SACK", BooleanValue (true));
 
   //initialize connectivity matrix of terrestrial enbs 
   std::vector<std::vector<int> > terrestrialConnectivityMat = readNxNMatrix (adj_mat_file_name);
@@ -1115,15 +1113,12 @@ main (int argc, char *argv[])
     {
       epcHelper->SetAttribute("S1uLinkDataRate", DataRateValue (DataRate("5Mbps")));
     }
-  else if (scenario == 1)
+  else if (scenario == 1 || scenario == 2 || scenario == 3)
     {
       epcHelper->SetAttribute("S1uLinkDataRate", DataRateValue (DataRate("500Mbps")));
     }
-  else if (scenario == 2)
-    {
-      epcHelper->SetAttribute("S1uLinkDataRate", DataRateValue (DataRate("500Mbps")));
-    }
-  epcHelper->SetAttribute("S1uLinkDataRateSatellite", DataRateValue (DataRate ("5Mbps")));
+
+  epcHelper->SetAttribute("S1uLinkDataRateSatellite", DataRateValue (DataRate ("10Mbps")));
   epcHelper->SetAttribute("S1uLinkDelaySatellite", TimeValue (MilliSeconds (350)));
 
   lteHelper->SetEpcHelper (epcHelper);
@@ -1157,10 +1152,27 @@ main (int argc, char *argv[])
 
   // Create the Internet
   PointToPointHelper p2ph;
-  DataRate internetRate ("10Gbps");
+  DataRate internetRate = DataRate ("10Gbps");
+  Time internetDelay = MilliSeconds (5);
+  Ptr<UniformRandomVariable> uv = CreateObject<UniformRandomVariable> ();
+  uv->SetStream (50);
+  Ptr<RateErrorModel> errorModel = CreateObject <RateErrorModel> ();
+  errorModel->SetRandomVariable (uv);
+  errorModel->SetUnit (RateErrorModel::ERROR_UNIT_PACKET);
+  errorModel->SetRate (0.0);
+
+  if (scenario == 3)
+    {
+      internetRate = DataRate ("10Mbps");
+      internetDelay = MilliSeconds (350);
+      errorModel->SetRate (0.0001);
+      Config::SetDefault ("ns3::TcpSocket::InitialCwnd", UintegerValue (10));
+    }
+
   p2ph.SetDeviceAttribute ("DataRate", DataRateValue (internetRate));
   p2ph.SetDeviceAttribute ("Mtu", UintegerValue (1500));
-  p2ph.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (5)));
+  p2ph.SetChannelAttribute ("Delay", TimeValue (internetDelay));
+  p2ph.SetDeviceAttribute ("ReceiveErrorModel", PointerValue (errorModel));
 
   NetDeviceContainer internetDevices = p2ph.Install (pgw, remoteHost);
   Ipv4AddressHelper ipv4h;
@@ -1172,11 +1184,9 @@ main (int argc, char *argv[])
   Ptr<PointToPointNetDevice> remEth = DynamicCast<PointToPointNetDevice> (internetDevices.Get(1));
 
   pgwEth->GetQueue()->SetAttribute("MaxBytes", UintegerValue ((internetRate.GetBitRate() / 8)*
-                                                              2*MilliSeconds (5).GetSeconds ()));
+                                                              2*internetDelay.GetSeconds ()));
   remEth->GetQueue()->SetAttribute("MaxBytes", UintegerValue ((internetRate.GetBitRate() / 8)*
-                                                              2*MilliSeconds (5).GetSeconds ()));
-
-  MeshEpcHelper::TraceAndDebug (pgwEth, remEth);
+                                                              2*internetDelay.GetSeconds ()));
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;
   Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting (remoteHost->GetObject<Ipv4> ());
