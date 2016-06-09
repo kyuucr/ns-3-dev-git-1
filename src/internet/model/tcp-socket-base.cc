@@ -3159,12 +3159,61 @@ TcpSocketBase::ReTxTimeout ()
   // Reset dupAckCount
   m_dupAckCount = 0;
 
-  // Please don't reset highTxMark, it is used for retransmission detection
+  /* RFC 5681
+   * When a TCP sender detects segment loss using the retransmission timer
+   * and the given segment has not yet been resent by way of the
+   * retransmission timer, the value of ssthresh MUST be set to no more
+   * than the value given in equation (4):
+   *
+   *   ssthresh = max (FlightSize / 2, 2*SMSS)            (4)
+   *
+   * where, as discussed above, FlightSize is the amount of outstanding
+   * data in the network.
+   *
+   * On the other hand, when a TCP sender detects segment loss using the
+   * retransmission timer and the given segment has already been
+   * retransmitted by way of the retransmission timer at least once, the
+   * value of ssthresh is held constant.
+   *
+   * Linux conditions for reducing slow start threshold :
+   *  if (icsk->icsk_ca_state <= TCP_CA_Disorder ||
+   *      !after(tp->high_seq, tp->snd_una) ||
+   *      (icsk->icsk_ca_state == TCP_CA_Loss && !icsk->icsk_retransmits))
+   *
+   * These conditions are explained in the following:
+   *
+   * 1) The TCP state should be less or equal than disorder, which is open or
+   * disorder. If we are entering into the loss state from these two,
+   * we have not yet reduced the slow - start threshold for the window of data.
+   * From all the other states, we already have done it. From RFC 5681:
+   *
+   * """
+   * That is, when the first loss in a window of data is detected,
+   * ssthresh MUST be set to no more than the value given by equation (4).
+   * """
+   *
+   * That implies the fact that we cannot reduce more the slow start threshold
+   * for the subsequent losses in the window. For us is:
+   *
+   * m_tcb->m_congState <= TcpSocketState::CA_DISORDER
+   *
+   * 2) If we have entered the loss state with all the data pointed to by high_seq
+   * acknowledged. Once again it means that in whatever state we are (other than
+   * open state), all the data from the window that got us into the state, prior to
+   * retransmission timer expiry, has been acknowledged. Please note that for
+   * ns-3, high_seq is represented by m_recover, and so it transforms in:
+   *
+   * m_recover <= m_txBuffer->HeadSequence ()
+   *
+   * 3) If the above two conditions fail, we still have one more condition that can
+   * demand reducing the slow - start threshold: If we are already in the loss state
+   * and have not yet retransmitted anything. The condition may arise in case we
+   * are not able to retransmit anything because of local congestion. This does
+   * not apply to ns-3 right now.
+   */
 
-  // When a TCP sender detects segment loss using the retransmission timer
-  // and the given segment has not yet been resent by way of the
-  // retransmission timer, decrease ssThresh
-  if (m_tcb->m_congState != TcpSocketState::CA_LOSS || !m_txBuffer->IsHeadRetransmitted ())
+  if (m_tcb->m_congState <= TcpSocketState::CA_DISORDER
+      || m_recover <= m_txBuffer->HeadSequence ())
     {
       m_tcb->m_ssThresh = m_congestionControl->GetSsThresh (m_tcb, BytesInFlight ());
     }
