@@ -1505,7 +1505,7 @@ TcpSocketBase::ReadOptions (const TcpHeader &tcpHeader, bool &scoreboardUpdated)
 
   for (it = options.begin (); it != options.end (); ++it)
     {
-      const Ptr<TcpOption> option = (*it);
+      const Ptr<const TcpOption> option = (*it);
 
       // Check only for ACK options here
       switch (option->GetKind ())
@@ -3023,8 +3023,8 @@ TcpSocketBase::EstimateRtt (const TcpHeader& tcpHeader)
         { // Ok to use this sample
           if (m_timestampEnabled && tcpHeader.HasOption (TcpOption::TS))
             {
-              Ptr<TcpOptionTS> ts;
-              ts = DynamicCast<TcpOptionTS> (tcpHeader.GetOption (TcpOption::TS));
+              Ptr<const TcpOptionTS> ts;
+              ts = DynamicCast<const TcpOptionTS> (tcpHeader.GetOption (TcpOption::TS));
               m = TcpOptionTS::ElapsedTimeFromTsValue (ts->GetEcho ());
             }
           else
