@@ -1,155 +1,84 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+/* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
+/*
+ * Copyright (c) 2016 Natale Patriciello <natale.patriciello@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 #include "gpsr-packet.h"
-#include "ns3/address-utils.h"
-#include "ns3/packet.h"
 #include "ns3/log.h"
 
-NS_LOG_COMPONENT_DEFINE ("GpsrPacket");
-
 namespace ns3 {
-namespace gpsr {
 
-NS_OBJECT_ENSURE_REGISTERED (TypeHeader);
-
-TypeHeader::TypeHeader (MessageType t = GPSRTYPE_HELLO)
-  : m_type (t),
-    m_valid (true)
-{
-}
-
-TypeId
-TypeHeader::GetTypeId ()
-{
-  static TypeId tid = TypeId ("ns3::gpsr::TypeHeader")
-    .SetParent<Header> ()
-    .AddConstructor<TypeHeader> ()
-  ;
-  return tid;
-}
-
-TypeId
-TypeHeader::GetInstanceTypeId () const
-{
-  return GetTypeId ();
-}
-
-uint32_t
-TypeHeader::GetSerializedSize () const
-{
-  return 1;
-}
-
-void
-TypeHeader::Serialize (Buffer::Iterator i) const
-{
-  i.WriteU8 ((uint8_t) m_type);
-}
-
-uint32_t
-TypeHeader::Deserialize (Buffer::Iterator start)
-{
-  Buffer::Iterator i = start;
-  uint8_t type = i.ReadU8 ();
-  m_valid = true;
-  switch (type)
-    {
-    case GPSRTYPE_HELLO:
-    case GPSRTYPE_POS:
-      {
-        m_type = (MessageType) type;
-        break;
-      }
-    default:
-      m_valid = false;
-    }
-  uint32_t dist = i.GetDistanceFrom (start);
-  NS_ASSERT (dist == GetSerializedSize ());
-  return dist;
-}
-
-void
-TypeHeader::Print (std::ostream &os) const
-{
-  switch (m_type)
-    {
-    case GPSRTYPE_HELLO:
-      {
-        os << "HELLO";
-        break;
-      }
-    case GPSRTYPE_POS:
-      {
-        os << "POSITION";
-        break;
-      }
-    default:
-      os << "UNKNOWN_TYPE";
-    }
-}
-
-bool
-TypeHeader::operator== (TypeHeader const & o) const
-{
-  return (m_type == o.m_type && m_valid == o.m_valid);
-}
-
-std::ostream &
-operator<< (std::ostream & os, TypeHeader const & h)
-{
-  h.Print (os);
-  return os;
-}
+NS_LOG_COMPONENT_DEFINE ("GpsrPacket");
 
 //-----------------------------------------------------------------------------
 // HELLO
 //-----------------------------------------------------------------------------
-HelloHeader::HelloHeader (uint64_t originPosx, uint64_t originPosy)
-  : m_originPosx (originPosx),
-    m_originPosy (originPosy)
+NS_OBJECT_ENSURE_REGISTERED (GpsrHelloHeader);
+
+GpsrHelloHeader::GpsrHelloHeader ()
+  : GpsrTypeHeader (),
+    m_originPosx (0),
+    m_originPosy (0)
 {
 }
 
-NS_OBJECT_ENSURE_REGISTERED (HelloHeader);
-
 TypeId
-HelloHeader::GetTypeId ()
+GpsrHelloHeader::GetTypeId ()
 {
-  static TypeId tid = TypeId ("ns3::gpsr::HelloHeader")
-    .SetParent<Header> ()
-    .AddConstructor<HelloHeader> ()
+  static TypeId tid = TypeId ("ns3::HelloHeader")
+    .SetParent<GpsrTypeHeader> ()
+    .AddConstructor<GpsrHelloHeader> ()
   ;
   return tid;
 }
 
 TypeId
-HelloHeader::GetInstanceTypeId () const
+GpsrHelloHeader::GetInstanceTypeId () const
 {
   return GetTypeId ();
 }
 
 uint32_t
-HelloHeader::GetSerializedSize () const
+GpsrHelloHeader::GetSerializedSize () const
 {
-  return 16;
+  return 17;
 }
 
 void
-HelloHeader::Serialize (Buffer::Iterator i) const
+GpsrHelloHeader::Serialize (Buffer::Iterator i) const
 {
   NS_LOG_DEBUG ("Serialize X " << m_originPosx << " Y " << m_originPosy);
 
-
+  i.WriteU8 (GpsrTypeHeader::GPSR_HELLO);
   i.WriteHtonU64 (m_originPosx);
   i.WriteHtonU64 (m_originPosy);
-
 }
 
 uint32_t
-HelloHeader::Deserialize (Buffer::Iterator start)
+GpsrHelloHeader::Deserialize (Buffer::Iterator start)
 {
-
   Buffer::Iterator i = start;
+
+  uint8_t type = i.ReadU8 ();
+
+  if (type != GpsrTypeHeader::GPSR_HELLO)
+    {
+      NS_LOG_DEBUG ("This is not an HELLO packet, returning");
+      return 0;
+    }
 
   m_originPosx = i.ReadNtohU64 ();
   m_originPosy = i.ReadNtohU64 ();
@@ -158,77 +87,75 @@ HelloHeader::Deserialize (Buffer::Iterator start)
 
   uint32_t dist = i.GetDistanceFrom (start);
   NS_ASSERT (dist == GetSerializedSize ());
+
   return dist;
 }
 
 void
-HelloHeader::Print (std::ostream &os) const
+GpsrHelloHeader::Print (std::ostream &os) const
 {
   os << " PositionX: " << m_originPosx
      << " PositionY: " << m_originPosy;
 }
 
+bool
+GpsrHelloHeader::operator== (GpsrHelloHeader const & o) const
+{
+  return (m_originPosx == o.m_originPosx && m_originPosy == o.m_originPosy);
+}
+
 std::ostream &
-operator<< (std::ostream & os, HelloHeader const & h)
+operator<< (std::ostream & os, GpsrHelloHeader const & h)
 {
   h.Print (os);
   return os;
 }
 
 
-
-bool
-HelloHeader::operator== (HelloHeader const & o) const
-{
-  return (m_originPosx == o.m_originPosx && m_originPosy == o.m_originPosy);
-}
-
-
-
-
-
 //-----------------------------------------------------------------------------
 // Position
 //-----------------------------------------------------------------------------
-PositionHeader::PositionHeader (uint64_t dstPosx, uint64_t dstPosy, uint32_t updated, uint64_t recPosx, uint64_t recPosy, uint8_t inRec, uint64_t lastPosx, uint64_t lastPosy)
-  : m_dstPosx (dstPosx),
-    m_dstPosy (dstPosy),
-    m_updated (updated),
-    m_recPosx (recPosx),
-    m_recPosy (recPosy),
-    m_inRec (inRec),
-    m_lastPosx (lastPosx),
-    m_lastPosy (lastPosy)
+
+NS_OBJECT_ENSURE_REGISTERED (GpsrPositionHeader);
+GpsrPositionHeader::GpsrPositionHeader ()
+  : GpsrTypeHeader (),
+    m_dstPosx (0),
+    m_dstPosy (0),
+    m_updated (0),
+    m_recPosx (0),
+    m_recPosy (0),
+    m_inRec (0),
+    m_lastPosx (0),
+    m_lastPosy (0)
 {
 }
 
-NS_OBJECT_ENSURE_REGISTERED (PositionHeader);
-
 TypeId
-PositionHeader::GetTypeId ()
+GpsrPositionHeader::GetTypeId ()
 {
-  static TypeId tid = TypeId ("ns3::gpsr::PositionHeader")
-    .SetParent<Header> ()
-    .AddConstructor<PositionHeader> ()
+  static TypeId tid = TypeId ("ns3::GpsrPositionHeader")
+    .SetParent<GpsrTypeHeader> ()
+    .AddConstructor<GpsrPositionHeader> ()
   ;
   return tid;
 }
 
 TypeId
-PositionHeader::GetInstanceTypeId () const
+GpsrPositionHeader::GetInstanceTypeId () const
 {
   return GetTypeId ();
 }
 
 uint32_t
-PositionHeader::GetSerializedSize () const
+GpsrPositionHeader::GetSerializedSize () const
 {
-  return 53;
+  return 54;
 }
 
 void
-PositionHeader::Serialize (Buffer::Iterator i) const
+GpsrPositionHeader::Serialize (Buffer::Iterator i) const
 {
+  i.WriteU8 (GpsrTypeHeader::GPSR_POS);
   i.WriteU64 (m_dstPosx);
   i.WriteU64 (m_dstPosy);
   i.WriteU32 (m_updated);
@@ -240,9 +167,17 @@ PositionHeader::Serialize (Buffer::Iterator i) const
 }
 
 uint32_t
-PositionHeader::Deserialize (Buffer::Iterator start)
+GpsrPositionHeader::Deserialize (Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
+  uint8_t type = i.ReadU8 ();
+
+  if (type != GpsrTypeHeader::GPSR_POS)
+    {
+      NS_LOG_DEBUG ("This is not an POS packet, returning");
+      return 0;
+    }
+
   m_dstPosx = i.ReadU64 ();
   m_dstPosy = i.ReadU64 ();
   m_updated = i.ReadU32 ();
@@ -258,7 +193,7 @@ PositionHeader::Deserialize (Buffer::Iterator start)
 }
 
 void
-PositionHeader::Print (std::ostream &os) const
+GpsrPositionHeader::Print (std::ostream &os) const
 {
   os << " PositionX: "  << m_dstPosx
      << " PositionY: " << m_dstPosy
@@ -271,25 +206,20 @@ PositionHeader::Print (std::ostream &os) const
 }
 
 std::ostream &
-operator<< (std::ostream & os, PositionHeader const & h)
+operator<< (std::ostream & os, GpsrPositionHeader const & h)
 {
   h.Print (os);
   return os;
 }
 
-
-
 bool
-PositionHeader::operator== (PositionHeader const & o) const
+GpsrPositionHeader::operator== (GpsrPositionHeader const & o) const
 {
-  return (m_dstPosx == o.m_dstPosx && m_dstPosy == o.m_dstPosy && m_updated == o.m_updated && m_recPosx == o.m_recPosx && m_recPosy == o.m_recPosy && m_inRec == o.m_inRec && m_lastPosx == o.m_lastPosx && m_lastPosy == o.m_lastPosy);
+  return (m_dstPosx == o.m_dstPosx && m_dstPosy == o.m_dstPosy
+          && m_updated == o.m_updated && m_recPosx == o.m_recPosx
+          && m_recPosy == o.m_recPosy && m_inRec == o.m_inRec
+          && m_lastPosx == o.m_lastPosx && m_lastPosy == o.m_lastPosy);
 }
 
 
-}
-}
-
-
-
-
-
+} // namespace ns3
