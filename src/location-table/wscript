@@ -7,24 +7,20 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('location-service', ['internet', 'mobility'])
+    module = bld.create_ns3_module('location-table', ['internet', 'mobility'])
     module.source = [
-        'model/location-service.cc',
-        'model/god.cc',
-        'helper/location-service-helper.cc',
+        'model/god-location-table.cc',
         ]
 
-    module_test = bld.create_ns3_module_test_library('location-service')
+    module_test = bld.create_ns3_module_test_library('location-table')
     module_test.source = [
-        'test/location-service-test-suite.cc',
         ]
 
     headers = bld(features='ns3header')
-    headers.module = 'location-service'
+    headers.module = 'location-table'
     headers.source = [
-        'model/location-service.h',
-        'model/god.h',
-        'helper/location-service-helper.h',
+        'model/abstract-location-table.h',
+        'model/god-location-table.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:
