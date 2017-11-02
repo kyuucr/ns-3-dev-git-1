@@ -79,8 +79,6 @@ protected:
   // Inherited
   virtual void DoDispose (void);
 
-
-private:
   Ptr<YansWifiChannel> m_channel; //!< YansWifiChannel that this YansWifiPhy is connected to
 };
 
