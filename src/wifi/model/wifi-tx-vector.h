@@ -85,7 +85,7 @@ public:
                 uint8_t nTx,
                 uint8_t nss,
                 uint8_t ness,
-                uint8_t channelWidth,
+                uint16_t channelWidth,
                 bool aggregation,
                 bool stbc);
   /**
@@ -131,13 +131,13 @@ public:
   /**
    * \returns the channel width (in MHz)
    */
-  uint8_t GetChannelWidth (void) const;
+  uint16_t GetChannelWidth (void) const;
   /**
    * Sets the selected channelWidth (in MHz)
    *
    * \param channelWidth
    */
-  void SetChannelWidth (uint8_t channelWidth);
+  void SetChannelWidth (uint16_t channelWidth);
   /**
    * \returns the guard interval duration (in nanoseconds)
    */
@@ -215,7 +215,7 @@ private:
   uint8_t  m_retries;            /**< The DATA_RETRIES/RTS_RETRIES parameter
                                  for Click radiotap information */
   WifiPreamble m_preamble;       /**< preamble */
-  uint8_t m_channelWidth;        /**< channel width in MHz */
+  uint16_t m_channelWidth;       /**< channel width in MHz */
   uint16_t m_guardInterval;      /**< guard interval duration in nanoseconds */
   uint8_t  m_nTx;                /**< number of TX antennas */
   uint8_t  m_nss;                /**< number of spatial streams */

@@ -46,7 +46,7 @@ WifiTxVector::WifiTxVector (WifiMode mode,
                             uint8_t nTx,
                             uint8_t nss,
                             uint8_t ness,
-                            uint8_t channelWidth,
+                            uint16_t channelWidth,
                             bool aggregation,
                             bool stbc)
   : m_mode (mode),
@@ -97,7 +97,7 @@ WifiTxVector::GetPreambleType (void) const
   return m_preamble;
 }
 
-uint8_t
+uint16_t
 WifiTxVector::GetChannelWidth (void) const
 {
   return m_channelWidth;
@@ -166,7 +166,7 @@ WifiTxVector::SetPreambleType (WifiPreamble preamble)
 }
 
 void
-WifiTxVector::SetChannelWidth (uint8_t channelWidth)
+WifiTxVector::SetChannelWidth (uint16_t channelWidth)
 {
   m_channelWidth = channelWidth;
 }
@@ -213,7 +213,7 @@ std::ostream & operator << ( std::ostream &os, const WifiTxVector &v)
     " txpwrlvl: " << (uint16_t)v.GetTxPowerLevel () <<
     " retries: " << (uint16_t)v.GetRetries () <<
     " preamble: " << v.GetPreambleType () <<
-    " channel width: " << (uint16_t)v.GetChannelWidth () <<
+    " channel width: " << v.GetChannelWidth () <<
     " GI: " << v.GetGuardInterval () <<
     " NTx: " << (uint16_t)v.GetNTx () <<
     " Nss: " << (uint16_t)v.GetNss () <<
