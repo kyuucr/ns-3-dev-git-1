@@ -82,7 +82,7 @@ public:
    * attempts to deliver the packet to all other YansWifiPhy objects
    * on the channel (except for the sender).
    */
-  void Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double txPowerDbm, Time duration) const;
+  virtual void Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double txPowerDbm, Time duration) const;
 
   /**
    * Assign a fixed random variable stream number to the random variables
@@ -95,13 +95,15 @@ public:
    */
   int64_t AssignStreams (int64_t stream);
 
-
-private:
+protected:
   /**
    * A vector of pointers to YansWifiPhy.
    */
   typedef std::vector<Ptr<YansWifiPhy> > PhyList;
 
+  PhyList m_phyList;                   //!< List of YansWifiPhys connected to this YansWifiChannel
+
+private:
   /**
    * This method is scheduled by Send for each associated YansWifiPhy.
    * The method then calls the corresponding YansWifiPhy that the first
@@ -114,7 +116,6 @@ private:
    */
   static void Receive (Ptr<YansWifiPhy> receiver, Ptr<Packet> packet, double txPowerDbm, Time duration);
 
-  PhyList m_phyList;                   //!< List of YansWifiPhys connected to this YansWifiChannel
   Ptr<PropagationLossModel> m_loss;    //!< Propagation loss model
   Ptr<PropagationDelayModel> m_delay;  //!< Propagation delay model
 };
