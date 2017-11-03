@@ -55,6 +55,13 @@ public:
                 uint16_t channelWidth,
                 bool aggregation,
                 bool stbc);
+  /**
+   * \brief WifiTxVectorAd constructor from a WifiTxVector
+   * \param other Instance of WifiTxVector
+   */
+  // TODO Maybe initialize all the internal fields?
+  WifiTxVectorAd (const WifiTxVector &other) : WifiTxVector(other) { }
+
   ~WifiTxVectorAd();
 
   /**

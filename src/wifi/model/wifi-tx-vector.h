@@ -89,6 +89,12 @@ public:
                 bool aggregation,
                 bool stbc);
   /**
+   * \brief WifiTxVector copy constructor
+   * \param other Other instance of WifiTxVector
+   */
+  WifiTxVector(const WifiTxVector &other);
+
+  /**
    * \returns the selected payload transmission mode
    */
   WifiMode GetMode (void) const;

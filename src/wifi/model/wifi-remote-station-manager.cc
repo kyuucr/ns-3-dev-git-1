@@ -1512,7 +1512,7 @@ WifiRemoteStationManager::DoGetCtsTxPowerLevel (Mac48Address address, WifiMode c
   return m_defaultTxPowerLevel;
 }
 
-uint8_t
+uint16_t
 WifiRemoteStationManager::DoGetCtsTxChannelWidth (Mac48Address address, WifiMode ctsMode)
 {
   return m_wifiPhy->GetChannelWidth ();
@@ -1542,7 +1542,7 @@ WifiRemoteStationManager::DoGetAckTxPowerLevel (Mac48Address address, WifiMode a
   return m_defaultTxPowerLevel;
 }
 
-uint8_t
+uint16_t
 WifiRemoteStationManager::DoGetAckTxChannelWidth (Mac48Address address, WifiMode ctsMode)
 {
   return m_wifiPhy->GetChannelWidth ();
@@ -1572,7 +1572,7 @@ WifiRemoteStationManager::DoGetBlockAckTxPowerLevel (Mac48Address address, WifiM
   return m_defaultTxPowerLevel;
 }
 
-uint8_t
+uint16_t
 WifiRemoteStationManager::DoGetBlockAckTxChannelWidth (Mac48Address address, WifiMode ctsMode)
 {
   return m_wifiPhy->GetChannelWidth ();
@@ -1639,6 +1639,7 @@ WifiRemoteStationManager::LookupState (Mac48Address address) const
   state->m_htSupported = false;
   state->m_vhtSupported = false;
   state->m_heSupported = false;
+  state->m_dmgSupported = false;
   const_cast<WifiRemoteStationManager *> (this)->m_states.push_back (state);
   NS_LOG_DEBUG ("WifiRemoteStationManager::LookupState returning new state");
   return state;
@@ -2008,7 +2009,7 @@ WifiRemoteStationManager::GetAddress (const WifiRemoteStation *station) const
   return station->m_state->m_address;
 }
 
-uint8_t
+uint16_t
 WifiRemoteStationManager::GetChannelWidth (const WifiRemoteStation *station) const
 {
   return station->m_state->m_channelWidth;
@@ -2125,7 +2126,7 @@ WifiRemoteStationManager::GetNNonErpSupported (const WifiRemoteStation *station)
   return size;
 }
 
-uint8_t
+uint16_t
 WifiRemoteStationManager::GetChannelWidthSupported (Mac48Address address) const
 {
   return LookupState (address)->m_channelWidth;

@@ -30,6 +30,7 @@
 #include "ht-capabilities.h"
 #include "vht-capabilities.h"
 #include "he-capabilities.h"
+#include "dmg-capabilities.h"
 
 namespace ns3 {
 
@@ -477,7 +478,7 @@ public:
    *
    * \return the channel width supported by the station
    */
-  uint8_t GetChannelWidthSupported (Mac48Address address) const;
+  uint16_t GetChannelWidthSupported (Mac48Address address) const;
   /**
    * Return whether the station supports HT/VHT short guard interval.
    *
@@ -651,8 +652,8 @@ public:
    *
    * \return the TXVECTOR to use to send this packet
    */
-  WifiTxVector GetDataTxVector (Mac48Address address, const WifiMacHeader *header,
-                                Ptr<const Packet> packet);
+  virtual WifiTxVector GetDataTxVector (Mac48Address address, const WifiMacHeader *header,
+                                        Ptr<const Packet> packet);
   /**
    * \param address remote address
    * \param header MAC header
@@ -708,8 +709,8 @@ public:
    * \param ctsMode the WifiMode the receiver used to send the CTS
    * \param rtsSnr the SNR of the RTS we sent
    */
-  void ReportRtsOk (Mac48Address address, const WifiMacHeader *header,
-                    double ctsSnr, WifiMode ctsMode, double rtsSnr);
+  virtual void ReportRtsOk (Mac48Address address, const WifiMacHeader *header,
+                            double ctsSnr, WifiMode ctsMode, double rtsSnr);
   /**
    * Should be invoked whenever we receive the Ack associated to a data packet
    * we just sent.
@@ -720,8 +721,8 @@ public:
    * \param ackMode the WifiMode the receiver used to send the ACK
    * \param dataSnr the SNR of the DATA we sent
    */
-  void ReportDataOk (Mac48Address address, const WifiMacHeader *header,
-                     double ackSnr, WifiMode ackMode, double dataSnr);
+  virtual void ReportDataOk (Mac48Address address, const WifiMacHeader *header,
+                             double ackSnr, WifiMode ackMode, double dataSnr);
   /**
    * Should be invoked after calling ReportRtsFailed if
    * NeedRtsRetransmission returns false
@@ -760,8 +761,8 @@ public:
    *
    * Should be invoked whenever a packet is successfully received.
    */
-  void ReportRxOk (Mac48Address address, const WifiMacHeader *header,
-                   double rxSnr, WifiMode txMode);
+  virtual void ReportRxOk (Mac48Address address, const WifiMacHeader *header,
+                           double rxSnr, WifiMode txMode);
 
   /**
    * \param address remote address
@@ -1015,7 +1016,7 @@ protected:
    *
    * \return the channel width (in MHz) supported by the station
    */
-  uint8_t GetChannelWidth (const WifiRemoteStation *station) const;
+  uint16_t GetChannelWidth (const WifiRemoteStation *station) const;
   /**
    * Return whether the given station supports HT/VHT short guard interval.
    *
@@ -1107,6 +1108,64 @@ protected:
    */
   Ptr<WifiMac> GetMac (void) const;
 
+protected:
+  /**
+   * A vector of WifiRemoteStations
+   */
+  typedef std::vector <WifiRemoteStation *> Stations;
+  /**
+   * A vector of WifiRemoteStationStates
+   */
+  typedef std::vector <WifiRemoteStationState *> StationStates;
+  /**
+   * This is a pointer to the WifiPhy associated with this
+   * WifiRemoteStationManager that is set on call to
+   * WifiRemoteStationManager::SetupPhy(). Through this pointer the
+   * station manager can determine PHY characteristics, such as the
+   * set of all transmission rates that may be supported (the
+   * "DeviceRateSet").
+   */
+  Ptr<WifiPhy> m_wifiPhy;
+
+  uint8_t m_defaultTxPowerLevel;  //!< Default tranmission power level
+  StationStates m_states;  //!< States of known stations
+
+  /**
+    * \param station the station that we need to communicate
+    *
+    * \return the TXVECTOR to use to send a packet to the station
+    *
+    * Note: This method is called before sending a unicast packet or a fragment
+    *       of a unicast packet to decide which transmission mode to use.
+    */
+  virtual WifiTxVector DoGetDataTxVector (WifiRemoteStation *station) = 0;
+  /**
+   * Return the station associated with the given address and TID.
+   *
+   * \param address the address of the station
+   * \param tid the TID
+   *
+   * \return WifiRemoteStation corresponding to the address
+   */
+  WifiRemoteStation* Lookup (Mac48Address address, uint8_t tid) const;
+  /// Find a remote station by its remote address and TID taken from MAC header
+  /**
+   * Return the station associated with the given address and MAC header.
+   * It simply gets TID from the MAC header and calls Lookup with tid.
+   *
+   * \param address the address of the station
+   * \param header MAC header
+   *
+   * \return WifiRemoteStation corresponding to the address
+   */
+  WifiRemoteStation* Lookup (Mac48Address address, const WifiMacHeader *header) const;
+  /**
+   * Return the state of the station associated with the given address.
+   *
+   * \param address the address of the station
+   * \return WifiRemoteStationState corresponding to the address
+   */
+  WifiRemoteStationState* LookupState (Mac48Address address) const;
 
 private:
   /**
@@ -1173,15 +1232,7 @@ private:
    * \return a new station data structure
    */
   virtual WifiRemoteStation* DoCreateStation (void) const = 0;
-  /**
-    * \param station the station that we need to communicate
-    *
-    * \return the TXVECTOR to use to send a packet to the station
-    *
-    * Note: This method is called before sending a unicast packet or a fragment
-    *       of a unicast packet to decide which transmission mode to use.
-    */
-  virtual WifiTxVector DoGetDataTxVector (WifiRemoteStation *station) = 0;
+
   /**
    * \param station the station that we need to communicate
    *
@@ -1219,7 +1270,7 @@ private:
    *
    * \return the CTS transmit channel width
    */
-  virtual uint8_t DoGetCtsTxChannelWidth (Mac48Address address, WifiMode ctsMode);
+  virtual uint16_t DoGetCtsTxChannelWidth (Mac48Address address, WifiMode ctsMode);
   /**
    * \param address the address of the recipient
    * \param ctsMode the mode to be used
@@ -1247,7 +1298,7 @@ private:
    *
    * \return the ack transmit channel width
    */
-  virtual uint8_t DoGetAckTxChannelWidth (Mac48Address address, WifiMode ctsMode);
+  virtual uint16_t DoGetAckTxChannelWidth (Mac48Address address, WifiMode ctsMode);
   /**
    * \param address the address of the recipient
    * \param ackMode the mode to be used
@@ -1275,7 +1326,7 @@ private:
    *
    * \return the block ack transmit channel width
    */
-  virtual uint8_t DoGetBlockAckTxChannelWidth (Mac48Address address, WifiMode ctsMode);
+  virtual uint16_t DoGetBlockAckTxChannelWidth (Mac48Address address, WifiMode ctsMode);
   /**
    * \param address the address of the recipient
    * \param blockAckMode the mode to be used
@@ -1374,34 +1425,6 @@ private:
   virtual void DoReportAmpduTxStatus (WifiRemoteStation *station, uint8_t nSuccessfulMpdus, uint8_t nFailedMpdus, double rxSnr, double dataSnr);
 
   /**
-   * Return the state of the station associated with the given address.
-   *
-   * \param address the address of the station
-   * \return WifiRemoteStationState corresponding to the address
-   */
-  WifiRemoteStationState* LookupState (Mac48Address address) const;
-  /**
-   * Return the station associated with the given address and TID.
-   *
-   * \param address the address of the station
-   * \param tid the TID
-   *
-   * \return WifiRemoteStation corresponding to the address
-   */
-  WifiRemoteStation* Lookup (Mac48Address address, uint8_t tid) const;
-  /// Find a remote station by its remote address and TID taken from MAC header
-  /**
-   * Return the station associated with the given address and MAC header.
-   * It simply gets TID from the MAC header and calls Lookup with tid.
-   *
-   * \param address the address of the station
-   * \param header MAC header
-   *
-   * \return WifiRemoteStation corresponding to the address
-   */
-  WifiRemoteStation* Lookup (Mac48Address address, const WifiMacHeader *header) const;
-
-  /**
    * Return whether the modulation class of the selected mode for the
    * control answer frame is allowed.
    *
@@ -1421,7 +1444,7 @@ private:
    *
    * \return control answer mode
    */
-  WifiMode GetControlAnswerMode (Mac48Address address, WifiMode reqMode);
+  virtual WifiMode GetControlAnswerMode (Mac48Address address, WifiMode reqMode);
 
   /**
    * Actually sets the fragmentation threshold, it also checks the validity of
@@ -1445,25 +1468,6 @@ private:
    * \return the number of fragments needed
    */
   uint32_t GetNFragments (const WifiMacHeader *header, Ptr<const Packet> packet);
-
-  /**
-   * A vector of WifiRemoteStations
-   */
-  typedef std::vector <WifiRemoteStation *> Stations;
-  /**
-   * A vector of WifiRemoteStationStates
-   */
-  typedef std::vector <WifiRemoteStationState *> StationStates;
-
-  /**
-   * This is a pointer to the WifiPhy associated with this
-   * WifiRemoteStationManager that is set on call to
-   * WifiRemoteStationManager::SetupPhy(). Through this pointer the
-   * station manager can determine PHY characteristics, such as the
-   * set of all transmission rates that may be supported (the
-   * "DeviceRateSet").
-   */
-  Ptr<WifiPhy> m_wifiPhy;
   /**
    * This is a pointer to the WifiMac associated with this
    * WifiRemoteStationManager that is set on call to
@@ -1484,7 +1488,6 @@ private:
   WifiModeList m_bssBasicRateSet; //!< basic rate set
   WifiModeList m_bssBasicMcsSet; //!< basic MCS set
 
-  StationStates m_states;  //!< States of known stations
   Stations m_stations;     //!< Information for each known stations
 
   WifiMode m_defaultTxMode; //!< The default transmission mode
@@ -1499,7 +1502,6 @@ private:
   uint32_t m_rtsCtsThreshold;  //!< Threshold for RTS/CTS
   uint32_t m_fragmentationThreshold;  //!< Current threshold for fragmentation
   uint32_t m_nextFragmentationThreshold;  //!< Threshold for fragmentation that will be used for the next transmission
-  uint8_t m_defaultTxPowerLevel;  //!< Default tranmission power level
   WifiMode m_nonUnicastMode;  //!< Transmission mode for non-unicast DATA frames
   bool m_useNonErpProtection; //!< flag if protection for non-ERP stations against ERP transmissions is enabled
   bool m_useNonHtProtection;  //!< flag if protection for non-HT stations against HT transmissions is enabled
@@ -1560,7 +1562,7 @@ struct WifiRemoteStationState
   Mac48Address m_address;  //!< Mac48Address of the remote station
   WifiRemoteStationInfo m_info; //!< remote station info
 
-  uint8_t m_channelWidth;     //!< Channel width (in MHz) supported by the remote station
+  uint16_t m_channelWidth;    //!< Channel width (in MHz) supported by the remote station
   bool m_shortGuardInterval;  //!< Flag if HT/VHT short guard interval is supported by the remote station
   uint16_t m_guardInterval;   //!< HE Guard interval duration (in nanoseconds) supported by the remote station
   uint8_t m_streams;          //!< Number of supported streams by the remote station
@@ -1575,6 +1577,7 @@ struct WifiRemoteStationState
   bool m_htSupported;         //!< Flag if HT is supported by the station
   bool m_vhtSupported;        //!< Flag if VHT is supported by the station
   bool m_heSupported;         //!< Flag if HE is supported by the station
+  bool m_dmgSupported;        //!< Flag if DMG is supported by the station
 };
 
 /**

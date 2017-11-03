@@ -65,6 +65,23 @@ WifiTxVector::WifiTxVector (WifiMode mode,
 {
 }
 
+WifiTxVector::WifiTxVector(const WifiTxVector &other)
+  : m_mode (other.m_mode),
+    m_txPowerLevel (other.m_txPowerLevel),
+    m_retries (other.m_retries),
+    m_preamble (other.m_preamble),
+    m_channelWidth (other.m_channelWidth),
+    m_guardInterval (other.m_guardInterval),
+    m_nTx (other.m_nTx),
+    m_nss (other.m_nss),
+    m_ness (other.m_ness),
+    m_aggregation (other.m_aggregation),
+    m_stbc (other.m_stbc),
+    m_modeInitialized (other.m_modeInitialized),
+    m_txPowerLevelInitialized (other.m_txPowerLevelInitialized)
+{
+}
+
 WifiMode
 WifiTxVector::GetMode (void) const
 {
