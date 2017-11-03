@@ -43,6 +43,9 @@ class AggregationCapableTransmissionListener;
  */
 enum TypeOfStation
 {
+  DMG_STA,
+  DMG_AP,
+  DMG_ADHOC,
   STA,
   AP,
   ADHOC_STA,
@@ -144,7 +147,7 @@ public:
   /**
    * Notify the EDCAF that access has been granted.
    */
-  void NotifyAccessGranted (void);
+  virtual void NotifyAccessGranted (void);
   /**
    * Notify the EDCAF that internal collision has occurred.
    */
@@ -172,7 +175,7 @@ public:
    * \param txMode wifi mode.
    * \param dataSnr reported data SNR from the peer.
    */
-  void GotBlockAck (const CtrlBAckResponseHeader *blockAck, Mac48Address recipient, double rxSnr, WifiMode txMode, double dataSnr);
+  virtual void GotBlockAck (const CtrlBAckResponseHeader *blockAck, Mac48Address recipient, double rxSnr, WifiMode txMode, double dataSnr);
   /**
    * Event handler when a Block ACK timeout has occurred.
    * \param nMpdus number of MPDUs sent in the A-MPDU transmission that results in a Block ACK timeout.
@@ -208,11 +211,11 @@ public:
   /**
    * Restart access request if needed.
    */
-  void RestartAccessIfNeeded (void);
+  virtual void RestartAccessIfNeeded (void);
   /**
    * Request access from DCF manager if needed.
    */
-  void StartAccessIfNeeded (void);
+  virtual void StartAccessIfNeeded (void);
 
   /**
    * Check if Block ACK Request should be re-transmitted.
@@ -385,7 +388,7 @@ public:
    * \param hdr Wi-Fi header
    * \return Mac48Address
    */
-  Mac48Address MapSrcAddressForAggregation (const WifiMacHeader &hdr);
+  virtual Mac48Address MapSrcAddressForAggregation (const WifiMacHeader &hdr);
   /**
    * This functions are used only to correctly set destination address in A-MSDU subframes.
    * If aggregating sta is a STA (in an infrastructured network):
@@ -396,8 +399,15 @@ public:
    * \param hdr Wi-Fi header
    * \return Mac48Address
    */
-  Mac48Address MapDestAddressForAggregation (const WifiMacHeader &hdr);
+  virtual Mac48Address MapDestAddressForAggregation (const WifiMacHeader &hdr);
 
+protected:
+  Ptr<BlockAckManager> m_baManager;       //!< the Block ACK manager
+  TracedValue<uint32_t> m_backoffTrace;   //!< backoff trace value
+  TracedValue<uint32_t> m_cwTrace;        //!< CW trace value
+  bool m_isAccessRequestedForRts;         //!< flag whether access is requested to transmit a RTS frame
+  Time m_currentPacketTimestamp;                    //!< the current packet timestamp
+  TypeOfStation m_typeOfStation;                    //!< the type of station
 
 private:
   /// allow AggregationCapableTransmissionListener class access
@@ -420,15 +430,15 @@ private:
    * \param timeout timeout value.
    * \param immediateBAck flag to indicate whether immediate block ack is used.
    */
-  void SendAddBaRequest (Mac48Address recipient, uint8_t tid, uint16_t startSeq,
-                         uint16_t timeout, bool immediateBAck);
+  virtual void SendAddBaRequest (Mac48Address recipient, uint8_t tid, uint16_t startSeq,
+                                 uint16_t timeout, bool immediateBAck);
   /**
    * After that all packets, for which a block ack agreement was established, have been
    * transmitted, we have to send a block ack request.
    *
    * \param bar the block ack request.
    */
-  void SendBlockAckRequest (const Bar &bar);
+  virtual void SendBlockAckRequest (const Bar &bar);
   /**
    * For now is typically invoked to complete transmission of a packets sent with ack policy
    * Block Ack: the packet is buffered and dcf is reset.
@@ -519,20 +529,14 @@ private:
   AcIndex m_ac;                                     //!< the access category
   Ptr<MsduAggregator> m_msduAggregator;             //!< A-MSDU aggregator
   Ptr<MpduAggregator> m_mpduAggregator;             //!< A-MPDU aggregator
-  TypeOfStation m_typeOfStation;                    //!< the type of station
   Ptr<QosBlockedDestinations> m_qosBlockedDestinations; //!< QOS blocked destinations
-  Ptr<BlockAckManager> m_baManager;                     //!< the Block ACK manager
   uint8_t m_blockAckThreshold;                      //!< the Block ACK threshold
   BlockAckType m_blockAckType;                      //!< the Block ACK type
-  Time m_currentPacketTimestamp;                    //!< the current packet timestamp
   uint16_t m_blockAckInactivityTimeout;             //!< the Block ACK inactivity timeout
   Bar m_currentBar;                                 //!< the current BAR
   Time m_startTxop;                                 //!< the start TXOP time
-  bool m_isAccessRequestedForRts;                   //!< flag whether access is requested to transmit a RTS frame
   bool m_currentIsFragmented;                       //!< flag whether current packet is fragmented
 
-  TracedValue<uint32_t> m_backoffTrace;   //!< backoff trace value
-  TracedValue<uint32_t> m_cwTrace;        //!< CW trace value
   TracedCallback<Time, Time> m_txopTrace; //!< TXOP trace callback
 };
 
