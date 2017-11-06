@@ -56,6 +56,14 @@ enum WifiModulationClass
   WIFI_MOD_CLASS_OFDM,
   /** HT PHY (Clause 20) */
   WIFI_MOD_CLASS_HT,
+  /** DMG Control PHY (Clause 21.4) 802.11ad */
+  WIFI_MOD_CLASS_DMG_CTRL,
+  /** DMG OFDM PHY (Clause 21.5) 802.11ad */
+  WIFI_MOD_CLASS_DMG_OFDM,
+  /** DMG SC PHY (Clause 21.6) 802.11ad */
+  WIFI_MOD_CLASS_DMG_SC,
+  /** DMG Low-Power SC PHY (Clause 21.7) 802.11ad */
+  WIFI_MOD_CLASS_DMG_LP_SC,
   /** VHT PHY (Clause 22) */
   WIFI_MOD_CLASS_VHT,
   /** HE PHY (Clause 26) */
@@ -80,7 +88,21 @@ enum WifiCodeRate
   /** Rate 1/2 */
   WIFI_CODE_RATE_1_2,
   /** Rate 5/6 */
-  WIFI_CODE_RATE_5_6
+  WIFI_CODE_RATE_5_6,
+  /** Rate 5/8 */
+  WIFI_CODE_RATE_5_8,
+  /** Rate 13/16 */
+  WIFI_CODE_RATE_13_16,
+  /** Rate 1/4 - really 1/2 rep 2 */
+  WIFI_CODE_RATE_1_4,
+  /** Rate 13/28 */
+  WIFI_CODE_RATE_13_28,
+  /** Rate 13/21 */
+  WIFI_CODE_RATE_13_21,
+  /** Rate 52/63 */
+  WIFI_CODE_RATE_52_63,
+  /** Rate 13/14 */
+  WIFI_CODE_RATE_13_14,
 };
 
 /**
@@ -220,6 +242,21 @@ public:
    */
   WifiMode (std::string name);
 
+  /**
+   * \returns the number of Hz used by this signal
+   */
+  uint64_t GetBandwidth (void) const;
+  /**
+   * \returns the physical bit rate of this signal.
+   *
+   * If a transmission mode uses 1/2 FEC, and if its
+   * data rate is 3Mbps, the phy rate is 6Mbps
+   */
+  uint64_t GetPhyRate (void) const;
+  /**
+   * \returns the data bit rate of this signal.
+   */
+  uint64_t GetDataRate (void) const;
 
 private:
   /// allow WifiModeFactory class access
@@ -284,7 +321,34 @@ public:
                                   bool isMandatory,
                                   WifiCodeRate codingRate,
                                   uint16_t constellationSize);
-
+  /**
+   * \param uniqueName the name of the associated WifiMode. This name
+   *        must be unique accross _all_ instances.
+   * \param mcsValue the mcs value
+   * \param modClass the class of modulation
+   * \param isMandatory true if this WifiMode is mandatory, false otherwise.
+   * \param bandwidth the bandwidth (Hz) of the signal generated when the
+   *        associated WifiMode is used.
+   * \param phyRate the rate (bits/second) at which the PHY supports.
+   * \param codingRate if convolutional coding is used for this rate
+   *        then this parameter specifies the convolutional coding rate
+   *        used. If there is no explicit convolutional coding step (e.g.,
+   *        for DSSS rates) then the caller should set this parameter to
+   *        WIFI_CODE_RATE_UNCODED.
+   * \param constellationSize the order of the constellation used.
+   *
+   * \return WifiMode
+   *
+   * Create a WifiMode.
+   */
+  static WifiMode CreateWifiMode (std::string uniqueName,
+                                  uint8_t mcsValue,
+                                  WifiModulationClass modClass,
+                                  bool isMandatory,
+                                  uint64_t bandwidth,
+                                  uint64_t phyRate,
+                                  WifiCodeRate codingRate,
+                                  uint16_t constellationSize);
   /**
    * \param uniqueName the name of the associated WifiMode. This name
    *        must be unique accross _all_ instances.
@@ -321,6 +385,9 @@ private:
   struct WifiModeItem
   {
     std::string uniqueUid; ///< unique UID
+    uint64_t bandwidth;
+    uint64_t dataRate;
+    uint64_t phyRate;
     WifiModulationClass modClass; ///< modulation class
     uint16_t constellationSize; ///< constellation size
     WifiCodeRate codingRate; ///< coding rate
