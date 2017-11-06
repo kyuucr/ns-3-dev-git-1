@@ -307,7 +307,7 @@ public:
    * \sa WifiMac::Configure80211ax_2_4Ghz
    * \sa WifiMac::Configure80211ax_5Ghz
    */
-  void ConfigureStandard (WifiPhyStandard standard);
+  virtual void ConfigureStandard (WifiPhyStandard standard);
 
 
 protected:
