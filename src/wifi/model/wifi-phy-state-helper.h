@@ -229,6 +229,21 @@ public:
   typedef void (* TxTracedCallback)(Ptr<const Packet> packet, WifiMode mode,
                                     WifiPreamble preamble, uint8_t power);
 
+protected:
+  TracedCallback<Ptr<const Packet>, double, WifiMode, WifiPreamble> m_rxOkTrace; ///< receive OK trace callback
+  WifiPhy::RxOkCallback m_rxOkCallback; ///< receive OK callback
+
+  TracedCallback<Ptr<const Packet>, double> m_rxErrorTrace; ///< receive error trace callback
+  WifiPhy::RxErrorCallback m_rxErrorCallback; ///< receive error callback
+
+  /**
+   * Notify all WifiPhyListener that the reception was successful.
+   */
+  void NotifyRxEndOk (void);
+  /**
+   * Switch the state from RX.
+   */
+  void DoSwitchFromRx (void);
 
 private:
   /**
@@ -259,10 +274,6 @@ private:
    */
   void NotifyRxStart (Time duration);
   /**
-   * Notify all WifiPhyListener that the reception was successful.
-   */
-  void NotifyRxEndOk (void);
-  /**
    * Notify all WifiPhyListener that the reception was not successful.
    */
   void NotifyRxEndError (void);
@@ -287,10 +298,6 @@ private:
    * Notify all WifiPhyListener that we woke up
    */
   void NotifyWakeup (void);
-  /**
-   * Switch the state from RX.
-   */
-  void DoSwitchFromRx (void);
 
   /**
    * The trace source fired when state is changed.
@@ -311,11 +318,8 @@ private:
   Time m_previousStateChangeTime; ///< previous state change time
 
   Listeners m_listeners; ///< listeners
-  TracedCallback<Ptr<const Packet>, double, WifiMode, WifiPreamble> m_rxOkTrace; ///< receive OK trace callback
-  TracedCallback<Ptr<const Packet>, double> m_rxErrorTrace; ///< receive error trace callback
+
   TracedCallback<Ptr<const Packet>, WifiMode, WifiPreamble, uint8_t> m_txTrace; ///< transmit trace callback
-  WifiPhy::RxOkCallback m_rxOkCallback; ///< receive OK callback
-  WifiPhy::RxErrorCallback m_rxErrorCallback; ///< receive error callback
 };
 
 } //namespace ns3
