@@ -251,9 +251,9 @@ public:
    * \param rxPowerW the receive power in W
    * \param rxDuration the duration needed for the reception of the packet
    */
-  void StartReceivePreambleAndHeader (Ptr<Packet> packet,
-                                      double rxPowerW,
-                                      Time rxDuration);
+  virtual void StartReceivePreambleAndHeader (Ptr<Packet> packet,
+                                              double rxPowerW,
+                                              Time rxDuration);
 
   /**
    * Starting receiving the payload of a packet (i.e. the first bit of the packet has arrived).
@@ -285,8 +285,7 @@ public:
    *        power is calculated as txPowerMin + txPowerLevel * (txPowerMax - txPowerMin) / nTxLevels
    * \param mpdutype the type of the MPDU as defined in WifiPhy::MpduType.
    */
-  void SendPacket (Ptr<const Packet> packet, WifiTxVector txVector, MpduType mpdutype = NORMAL_MPDU);
-
+  virtual void SendPacket (Ptr<const Packet> packet, WifiTxVector txVector, MpduType mpdutype = NORMAL_MPDU);
   /**
    * \param packet the packet to send
    * \param txVector the TXVECTOR that has tx parameters such as mode, the transmission mode to use to send
@@ -369,7 +368,7 @@ public:
    *
    * \return the total amount of time this PHY will stay busy for the transmission of these bytes.
    */
-  Time CalculateTxDuration (uint32_t size, WifiTxVector txVector, uint16_t frequency, MpduType mpdutype, uint8_t incFlag);
+  virtual Time CalculateTxDuration (uint32_t size, WifiTxVector txVector, uint16_t frequency, MpduType mpdutype, uint8_t incFlag);
 
   /**
    * \param txVector the transmission parameters used for this packet
@@ -426,19 +425,19 @@ public:
    *
    * \return the WifiMode used for the transmission of the PLCP header
    */
-  static WifiMode GetPlcpHeaderMode (WifiTxVector txVector);
+  virtual WifiMode GetPlcpHeaderMode (WifiTxVector txVector) const;
   /**
    * \param txVector the transmission parameters used for this packet
    *
    * \return the duration of the PLCP header
    */
-  static Time GetPlcpHeaderDuration (WifiTxVector txVector);
+  virtual Time GetPlcpHeaderDuration (WifiTxVector txVector) const;
   /**
    * \param txVector the transmission parameters used for this packet
    *
    * \return the duration of the PLCP preamble
    */
-  static Time GetPlcpPreambleDuration (WifiTxVector txVector);
+  virtual Time GetPlcpPreambleDuration (WifiTxVector txVector) const;
   /**
    * \param size the number of bytes in the packet to send
    * \param txVector the TXVECTOR used for the transmission of this packet
@@ -456,7 +455,7 @@ public:
    *
    * \return the duration of the payload
    */
-  Time GetPayloadDuration (uint32_t size, WifiTxVector txVector, uint16_t frequency, MpduType mpdutype, uint8_t incFlag);
+  virtual Time GetPayloadDuration (uint32_t size, WifiTxVector txVector, uint16_t frequency, MpduType mpdutype, uint8_t incFlag);
 
   /**
    * The WifiPhy::GetNModes() and WifiPhy::GetMode() methods are used
@@ -1681,6 +1680,14 @@ protected:
    * class is higher than the CcaMode1Threshold
    */
   void SwitchMaybeToCcaBusy (void);
+  /**
+   * Configure the PHY-level parameters for different Wi-Fi standard.
+   * This method is called when defaults for each standard must be
+   * selected.
+   *
+   * \param standard the Wi-Fi standard
+   */
+  virtual void ConfigureDefaultsForStandard (WifiPhyStandard standard);
 
   InterferenceHelper m_interference;   //!< Pointer to InterferenceHelper
   Ptr<UniformRandomVariable> m_random; //!< Provides uniform random variables.
@@ -1756,14 +1763,6 @@ private:
    * the number of available transmit spatial streams
    */
   void ConfigureHtDeviceMcsSet (void);
-  /**
-   * Configure the PHY-level parameters for different Wi-Fi standard.
-   * This method is called when defaults for each standard must be
-   * selected.
-   *
-   * \param standard the Wi-Fi standard
-   */
-  void ConfigureDefaultsForStandard (WifiPhyStandard standard);
   /**
    * Configure the PHY-level parameters for different Wi-Fi standard.
    * This method is called when the Frequency or ChannelNumber attributes

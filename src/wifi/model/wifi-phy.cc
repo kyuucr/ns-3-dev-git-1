@@ -148,7 +148,13 @@ WifiPhy::ChannelToFrequencyWidthMap WifiPhy::m_channelToFrequencyWidth =
   { std::make_pair (178, WIFI_PHY_STANDARD_80211_10MHZ), std::make_pair (5890, 10) },
   { std::make_pair (180, WIFI_PHY_STANDARD_80211_10MHZ), std::make_pair (5900, 10) },
   { std::make_pair (182, WIFI_PHY_STANDARD_80211_10MHZ), std::make_pair (5910, 10) },
-  { std::make_pair (184, WIFI_PHY_STANDARD_80211_10MHZ), std::make_pair (5920, 10) }
+  { std::make_pair (184, WIFI_PHY_STANDARD_80211_10MHZ), std::make_pair (5920, 10) },
+
+  // 802.11ad/WiGig (2.16 GHz channels at the 56.16-64.8) GHz band
+  { std::make_pair (1, WIFI_PHY_STANDARD_80211ad), std::make_pair (58320, 2160) },
+  { std::make_pair (2, WIFI_PHY_STANDARD_80211ad), std::make_pair (60480, 2160) },
+  { std::make_pair (3, WIFI_PHY_STANDARD_80211ad), std::make_pair (62640, 2160) },
+  { std::make_pair (4, WIFI_PHY_STANDARD_80211ad), std::make_pair (64800, 2160) }
 };
 
 TypeId
@@ -1792,7 +1798,7 @@ WifiPhy::GetPlcpSigBDuration (WifiPreamble preamble)
 }
 
 WifiMode
-WifiPhy::GetPlcpHeaderMode (WifiTxVector txVector)
+WifiPhy::GetPlcpHeaderMode (WifiTxVector txVector) const
 {
   switch (txVector.GetMode ().GetModulationClass ())
     {
@@ -1838,7 +1844,7 @@ WifiPhy::GetPlcpHeaderMode (WifiTxVector txVector)
 }
 
 Time
-WifiPhy::GetPlcpHeaderDuration (WifiTxVector txVector)
+WifiPhy::GetPlcpHeaderDuration (WifiTxVector txVector) const
 {
   WifiPreamble preamble = txVector.GetPreambleType ();
   if (preamble == WIFI_PREAMBLE_NONE)
@@ -1907,7 +1913,7 @@ WifiPhy::GetPlcpHeaderDuration (WifiTxVector txVector)
 }
 
 Time
-WifiPhy::GetPlcpPreambleDuration (WifiTxVector txVector)
+WifiPhy::GetPlcpPreambleDuration (WifiTxVector txVector) const
 {
   WifiPreamble preamble = txVector.GetPreambleType ();
   if (preamble == WIFI_PREAMBLE_NONE)
