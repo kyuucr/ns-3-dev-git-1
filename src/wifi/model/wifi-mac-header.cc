@@ -32,13 +32,14 @@ enum
 {
   TYPE_MGT = 0,
   TYPE_CTL  = 1,
-  TYPE_DATA = 2
+  TYPE_DATA = 2,
+  TYPE_Extension = 3  // Extension frame type for DMG.
 };
 
 /// subtype enumeration
 enum
 {
-  //Reserved: 0 - 6
+  SUBTYPE_CTL_EXTENSION = 6, // Extension subtype for DMG Control Frame Extension.
   SUBTYPE_CTL_CTLWRAPPER = 7,
   SUBTYPE_CTL_BACKREQ = 8,
   SUBTYPE_CTL_BACKRESP = 9,
@@ -51,7 +52,11 @@ WifiMacHeader::WifiMacHeader ()
   : m_ctrlMoreData (0),
     m_ctrlWep (0),
     m_ctrlOrder (1),
-    m_amsduPresent (0)
+    m_amsduPresent (0),
+    m_dmgPpdu (false),
+    m_beamRefinementRequired (false),
+    m_beamTrackingRequired (false),
+    m_trainingFieldLength (0)
 {
 }
 
@@ -844,6 +849,17 @@ case WIFI_MAC_ ## x: \
       FOO (CTL_ACK);
       FOO (CTL_BACKREQ);
       FOO (CTL_BACKRESP);
+      FOO (CTL_DMG_POLL);
+      FOO (CTL_DMG_SPR);
+      FOO (CTL_DMG_GRANT);
+      FOO (CTL_DMG_CTS);
+      FOO (CTL_DMG_DTS);
+      FOO (CTL_DMG_GRANT_ACK);
+      FOO (CTL_DMG_SSW);
+      FOO (CTL_DMG_SSW_FBCK);
+      FOO (CTL_DMG_SSW_ACK);
+
+      FOO (EXTENSION_DMG_BEACON);
 
       FOO (MGT_BEACON);
       FOO (MGT_ASSOCIATION_REQUEST);
@@ -981,6 +997,16 @@ WifiMacHeader::Print (std::ostream &os) const
       os << ", FragNumber=" << std::hex << (int) m_seqFrag << std::dec
          << ", SeqNumber=" << m_seqSeq;
       break;
+    case WIFI_MAC_CTL_DMG_POLL:
+    case WIFI_MAC_CTL_DMG_SPR:
+    case WIFI_MAC_CTL_DMG_GRANT:
+    case WIFI_MAC_CTL_DMG_CTS:
+    case WIFI_MAC_CTL_DMG_DTS:
+    case WIFI_MAC_CTL_DMG_SSW:
+    case WIFI_MAC_CTL_DMG_SSW_FBCK:
+    case WIFI_MAC_CTL_DMG_SSW_ACK:
+    case WIFI_MAC_CTL_DMG_GRANT_ACK:
+    case WIFI_MAC_EXTENSION_DMG_BEACON:
     case WIFI_MAC_DATA_CFACK:
     case WIFI_MAC_DATA_CFPOLL:
     case WIFI_MAC_DATA_CFACK_CFPOLL:

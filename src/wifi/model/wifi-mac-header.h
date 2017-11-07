@@ -41,6 +41,17 @@ enum WifiMacType
   WIFI_MAC_CTL_BACKREQ,
   WIFI_MAC_CTL_BACKRESP,
 
+  // New Control Frames for 802.11ad.
+  WIFI_MAC_CTL_DMG_POLL,
+  WIFI_MAC_CTL_DMG_SPR,
+  WIFI_MAC_CTL_DMG_GRANT,
+  WIFI_MAC_CTL_DMG_CTS,
+  WIFI_MAC_CTL_DMG_DTS,
+  WIFI_MAC_CTL_DMG_SSW,
+  WIFI_MAC_CTL_DMG_SSW_FBCK,
+  WIFI_MAC_CTL_DMG_SSW_ACK,
+  WIFI_MAC_CTL_DMG_GRANT_ACK,
+
   WIFI_MAC_MGT_BEACON,
   WIFI_MAC_MGT_ASSOCIATION_REQUEST,
   WIFI_MAC_MGT_ASSOCIATION_RESPONSE,
@@ -70,6 +81,11 @@ enum WifiMacType
   WIFI_MAC_QOSDATA_NULL,
   WIFI_MAC_QOSDATA_NULL_CFPOLL,
   WIFI_MAC_QOSDATA_NULL_CFACK_CFPOLL,
+
+  /*
+   *  Extension Frames for DMG.
+   */
+  WIFI_MAC_EXTENSION_DMG_BEACON,
 };
 
 /**
@@ -162,7 +178,7 @@ public:
    *
    * \param type the WifiMacType for the header
    */
-  void SetType (WifiMacType type);
+  virtual void SetType (WifiMacType type);
   /**
    * Set the Duration/ID field with the given duration (Time object).
    * The method converts the given time to microseconds.
@@ -284,7 +300,7 @@ public:
    *
    * \return the type (enum WifiMacType)
    */
-  WifiMacType GetType (void) const;
+  virtual WifiMacType GetType (void) const;
   /**
    * \return true if From DS bit is set, false otherwise
    */
@@ -514,7 +530,7 @@ public:
    *
    * \return the size of the WifiMacHeader in octets
    */
-  uint32_t GetSize (void) const;
+  virtual uint32_t GetSize (void) const;
   /**
    * Return a string corresponds to the header type.
    *
@@ -529,26 +545,35 @@ public:
    */
   typedef void (* TracedCallback)(const WifiMacHeader &header);
 
+protected:
+  uint8_t m_ctrlType; ///< control type
+  uint8_t m_ctrlSubtype; ///< control subtype
 
-private:
   /**
    * Return the raw Frame Control field.
    *
    * \return the raw Frame Control field
    */
-  uint16_t GetFrameControl (void) const;
+  virtual uint16_t GetFrameControl (void) const;
   /**
    * Return the raw QoS Control field.
    *
    * \return the raw QoS Control field
    */
-  uint16_t GetQosControl (void) const;
+  virtual uint16_t GetQosControl (void) const;
   /**
    * Set the Frame Control field with the given raw value.
    *
    * \param control the raw Frame Control field value
    */
-  void SetFrameControl (uint16_t control);
+  virtual void SetFrameControl (uint16_t control);
+  /**
+   * Set the QoS Control field with the given raw value.
+   *
+   * \param qos the raw QoS Control field value
+   */
+  virtual void SetQosControl (uint16_t qos);
+private:
   /**
    * Set the Sequence Control field with the given raw value.
    *
@@ -556,20 +581,12 @@ private:
    */
   void SetSequenceControl (uint16_t seq);
   /**
-   * Set the QoS Control field with the given raw value.
-   *
-   * \param qos the raw QoS Control field value
-   */
-  void SetQosControl (uint16_t qos);
-  /**
    * Print the Frame Control field to the output stream.
    *
    * \param os the output stream to print to
    */
   void PrintFrameControl (std::ostream &os) const;
 
-  uint8_t m_ctrlType; ///< control type
-  uint8_t m_ctrlSubtype; ///< control subtype
   uint8_t m_ctrlToDs; ///< control to DS
   uint8_t m_ctrlFromDs; ///< control from DS
   uint8_t m_ctrlMoreFrag; ///< control more fragments
