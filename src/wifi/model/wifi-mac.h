@@ -29,6 +29,12 @@
 
 namespace ns3 {
 
+class WifiMacExtensionInterface
+{
+public:
+  virtual void ConfigureStandard (WifiPhyStandard standard) = 0;
+};
+
 /**
  * \brief base class for all MAC-level wifi objects.
  * \ingroup wifi
@@ -41,11 +47,18 @@ namespace ns3 {
 class WifiMac : public Object
 {
 public:
+  friend class WifiMacExtensionAd;
   /**
    * \brief Get the type ID.
    * \return the object TypeId
    */
   static TypeId GetTypeId (void);
+
+  /**
+   * \brief Get a pointer to a MAC extension.
+   * \return nullptr if an extension is not present.
+   */
+  virtual WifiMacExtensionInterface* GetExtension() { return nullptr; }
 
   /**
    * \param slotTime the slot duration
@@ -307,7 +320,7 @@ public:
    * \sa WifiMac::Configure80211ax_2_4Ghz
    * \sa WifiMac::Configure80211ax_5Ghz
    */
-  virtual void ConfigureStandard (WifiPhyStandard standard);
+  void ConfigureStandard (WifiPhyStandard standard);
 
 
 protected:
@@ -324,6 +337,7 @@ protected:
 
 
 private:
+  void DoConfigureStandard (WifiPhyStandard standard);
   /**
    * \return the default maximum propagation delay
    *

@@ -24,7 +24,7 @@
 
 namespace ns3 {
 
-class WifiMacAd : public WifiMac
+class WifiMacExtensionAd : virtual public WifiMacExtensionInterface, public Object
 {
 public:
   /**
@@ -33,25 +33,19 @@ public:
    */
   static TypeId GetTypeId (void);
 
-  WifiMacAd();
-
-  WifiPhyStandard GetCurrentstandard (void) const;
-
-  typedef Callback<void, WifiPhyStandard, Mac48Address, bool> BandChangedCallback;
-  void RegisterBandChangedCallback (BandChangedCallback callback);
-  virtual void NotifyBandChanged (WifiPhyStandard, Mac48Address address, bool isInitiator) = 0;
+  WifiMacExtensionAd(const Ptr<WifiMac> &mac);
 
   virtual void ConfigureStandard (WifiPhyStandard standard);
 
 protected:
+  Ptr<WifiMac> m_mac;
+
+private:
   /**
    * This method sets 802.11ad 60 GHz standards-compliant defaults for following attributes:
    * Sifs, Slot, EifsNoDifs, Pifs, CtsTimeout, and AckTimeout.
    */
   virtual void Configure80211ad (void);
-
-  WifiPhyStandard m_standard;
-  BandChangedCallback m_bandChangedCallback;
 };
 
 } // namespace ns3

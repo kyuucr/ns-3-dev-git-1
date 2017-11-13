@@ -198,6 +198,12 @@ StaWifiMac::SendAssociationRequest (void)
     {
       assoc.SetHeCapabilities (GetHeCapabilities ());
     }
+
+  if (GetExtension() != nullptr)
+    {
+      dynamic_cast<StaWifiMacExtensionInterface*> (GetExtension())->ExtendBeacon(&assoc);
+    }
+
   packet->AddHeader (assoc);
 
   //The standard is not clear on the correct queue for management

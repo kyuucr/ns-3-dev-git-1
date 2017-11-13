@@ -119,6 +119,14 @@ RegularWifiMac::SetWifiRemoteStationManager (const Ptr<WifiRemoteStationManager>
 {
   NS_LOG_FUNCTION (this << stationManager);
   m_stationManager = stationManager;
+
+  if (GetExtension() != nullptr)
+    {
+      GetExtension()->SetWifiRemoteStationManager (stationManager);
+    }
+
+
+
   m_stationManager->SetHtSupported (GetHtSupported ());
   m_stationManager->SetVhtSupported (GetVhtSupported ());
   m_stationManager->SetHeSupported (GetHeSupported ());
@@ -887,7 +895,29 @@ RegularWifiMac::ForwardUp (Ptr<Packet> packet, Mac48Address from, Mac48Address t
 }
 
 void
+RegularWifiMac::TxOk (Ptr<const Packet> currentPacket, const WifiMacHeader &hdr)
+{
+  NS_LOG_FUNCTION (this << hdr);
+  if (GetExtension() != nullptr)
+    {
+      dynamic_cast<RegularWifiExtensionInterface*> (GetExtension())->TxOk(currentPacket, hdr);
+    }
+  m_txOkCallback (hdr);
+}
+
+void
 RegularWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
+{
+  if (GetExtension() != nullptr)
+    {
+      dynamic_cast<RegularWifiExtensionInterface*> (GetExtension())->DoReceive (packet, hdr);
+    }
+
+  DoReceive (packet, hdr);
+}
+
+void
+RegularWifiMac::DoReceive (Ptr<Packet> packet, const WifiMacHeader *hdr)
 {
   NS_LOG_FUNCTION (this << packet << hdr);
 
@@ -1122,25 +1152,25 @@ RegularWifiMac::GetTypeId (void)
                    "Value 0 means A-MPDU is disabled for that AC.",
                    UintegerValue (0),
                    MakeUintegerAccessor (&RegularWifiMac::SetVoMaxAmpduSize),
-                   MakeUintegerChecker<uint32_t> (0, 65535))
+                   MakeUintegerChecker<uint32_t> (0, 262143))
     .AddAttribute ("VI_MaxAmpduSize",
                    "Maximum length in bytes of an A-MPDU for AC_VI access class."
                    "Value 0 means A-MPDU is disabled for that AC.",
                    UintegerValue (65535),
                    MakeUintegerAccessor (&RegularWifiMac::SetViMaxAmpduSize),
-                   MakeUintegerChecker<uint32_t> (0, 65535))
+                   MakeUintegerChecker<uint32_t> (0, 262143))
     .AddAttribute ("BE_MaxAmpduSize",
                    "Maximum length in bytes of an A-MPDU for AC_BE access class."
                    "Value 0 means A-MPDU is disabled for that AC.",
                    UintegerValue (65535),
                    MakeUintegerAccessor (&RegularWifiMac::SetBeMaxAmpduSize),
-                   MakeUintegerChecker<uint32_t> (0, 65535))
+                   MakeUintegerChecker<uint32_t> (0, 262143))
     .AddAttribute ("BK_MaxAmpduSize",
                    "Maximum length in bytes of an A-MPDU for AC_BK access class."
                    "Value 0 means A-MPDU is disabled for that AC.",
                    UintegerValue (0),
                    MakeUintegerAccessor (&RegularWifiMac::SetBkMaxAmpduSize),
-                   MakeUintegerChecker<uint32_t> (0, 65535))
+                   MakeUintegerChecker<uint32_t> (0, 262143))
     .AddAttribute ("VO_BlockAckThreshold",
                    "If number of packets in VO queue reaches this value, "
                    "block ack mechanism is used. If this value is 0, block ack is never used."
@@ -1238,6 +1268,11 @@ RegularWifiMac::GetTypeId (void)
                    PointerValue (),
                    MakePointerAccessor (&RegularWifiMac::GetBKQueue),
                    MakePointerChecker<EdcaTxopN> ())
+    .AddAttribute ("MacLow",
+                   "Access the mac low layer responsible for packet transmition.",
+                   PointerValue (),
+                   MakePointerAccessor (&RegularWifiMac::m_low),
+                   MakePointerChecker<MacLow> ())
     .AddTraceSource ("TxOkHeader",
                      "The header of successfully transmitted packet.",
                      MakeTraceSourceAccessor (&RegularWifiMac::m_txOkCallback),
@@ -1254,6 +1289,18 @@ void
 RegularWifiMac::FinishConfigureStandard (WifiPhyStandard standard)
 {
   NS_LOG_FUNCTION (this << standard);
+
+  if (GetExtension() != nullptr)
+    {
+      GetExtension()->FinishConfigureStandard(standard);
+    }
+
+  DoFinishConfigureStandard(standard);
+}
+
+void
+RegularWifiMac::DoFinishConfigureStandard(WifiPhyStandard standard)
+{
   uint32_t cwmin = 0;
   uint32_t cwmax = 0;
   switch (standard)
@@ -1286,7 +1333,8 @@ RegularWifiMac::FinishConfigureStandard (WifiPhyStandard standard)
       cwmax = 1023;
       break;
     default:
-      NS_FATAL_ERROR ("Unsupported WifiPhyStandard in RegularWifiMac::FinishConfigureStandard ()");
+      // Hopefully other values are handled inside the Extension.
+      return;
     }
 
   ConfigureContentionWindow (cwmin, cwmax);
@@ -1301,17 +1349,10 @@ RegularWifiMac::ConfigureContentionWindow (uint32_t cwMin, uint32_t cwMax)
   ConfigureDcf (m_dca, cwMin, cwMax, isDsssOnly, AC_BE_NQOS);
 
   //Now we configure the EDCA functions
-  for (EdcaQueues::const_iterator i = m_edca.begin (); i != m_edca.end (); ++i)
+  for (EdcaQueues::iterator i = m_edca.begin (); i != m_edca.end (); ++i)
     {
       ConfigureDcf (i->second, cwMin, cwMax, isDsssOnly, i->first);
     }
-}
-
-void
-RegularWifiMac::TxOk (const WifiMacHeader &hdr)
-{
-  NS_LOG_FUNCTION (this << hdr);
-  m_txOkCallback (hdr);
 }
 
 void

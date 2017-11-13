@@ -289,6 +289,17 @@ void
 WifiMac::ConfigureStandard (WifiPhyStandard standard)
 {
   NS_LOG_FUNCTION (this << standard);
+  if (GetExtension() != nullptr)
+    {
+      GetExtension()->ConfigureStandard(standard);
+    }
+
+  DoConfigureStandard(standard);
+}
+
+void
+WifiMac::DoConfigureStandard(WifiPhyStandard standard)
+{
   switch (standard)
     {
     case WIFI_PHY_STANDARD_80211a:
@@ -325,9 +336,9 @@ WifiMac::ConfigureStandard (WifiPhyStandard standard)
       Configure80211ax_5Ghz ();
       break;
     case WIFI_PHY_STANDARD_UNSPECIFIED:
-    default:
       NS_FATAL_ERROR ("Wifi standard not found");
-      break;
+    default:
+      // Hopefully the standard is managed in the extensions
     }
   FinishConfigureStandard (standard);
 }

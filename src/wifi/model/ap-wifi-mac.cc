@@ -805,6 +805,12 @@ ApWifiMac::SendOneBeacon (void)
     {
       beacon.SetHeCapabilities (GetHeCapabilities ());
     }
+
+  if (GetExtension() != nullptr)
+    {
+      dynamic_cast<ApWifiMacExtensionInterface*> (GetExtension())->ExtendBeacon(&beacon);
+    }
+
   packet->AddHeader (beacon);
 
   //The beacon has it's own special queue, so we load it in there
@@ -830,10 +836,10 @@ ApWifiMac::SendOneBeacon (void)
 }
 
 void
-ApWifiMac::TxOk (const WifiMacHeader &hdr)
+ApWifiMac::TxOk (Ptr<const Packet> packet, const WifiMacHeader &hdr)
 {
   NS_LOG_FUNCTION (this);
-  RegularWifiMac::TxOk (hdr);
+  RegularWifiMac::TxOk (packet, hdr);
 
   if (hdr.IsAssocResp ()
       && m_stationManager->IsWaitAssocTxOk (hdr.GetAddr1 ()))

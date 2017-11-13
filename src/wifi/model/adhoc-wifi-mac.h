@@ -27,6 +27,12 @@
 
 namespace ns3 {
 
+class AdhocWifiMacExtensionInterface : public RegularWifiExtensionInterface
+{
+public:
+  virtual void ExtendBeacon(MgtBeaconHeader *header) = 0;
+};
+
 /**
  * \ingroup wifi
  *
@@ -35,6 +41,7 @@ namespace ns3 {
 class AdhocWifiMac : public RegularWifiMac
 {
 public:
+  friend class AdhocWifiMacExtensionAd;
   /**
    * \brief Get the type ID.
    * \return the object TypeId

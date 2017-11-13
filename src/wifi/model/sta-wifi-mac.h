@@ -31,6 +31,12 @@ namespace ns3  {
 
 class MgtAddBaRequestHeader;
 
+class StaWifiMacExtensionInterface : virtual public RegularWifiExtensionInterface
+{
+public:
+  virtual void ExtendBeacon(MgtAssocRequestHeader *header) = 0;
+};
+
 /**
  * \ingroup wifi
  *

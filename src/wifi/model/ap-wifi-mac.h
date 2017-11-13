@@ -34,6 +34,12 @@
 
 namespace ns3 {
 
+class ApWifiMacExtensionInterface : virtual public RegularWifiExtensionInterface
+{
+public:
+  virtual void ExtendBeacon(MgtBeaconHeader *header) = 0;
+};
+
 /**
  * \brief Wi-Fi AP state machine
  * \ingroup wifi
@@ -140,7 +146,14 @@ public:
    * \return the number of stream indices assigned by this model
    */
   int64_t AssignStreams (int64_t stream);
+  /**
+   * Get MultiBand InformationElement
+   * \return The multiband element.
+   */
+  Ptr<MultiBandElement> GetMultiBandElement (void) const;
 
+protected:
+  Time m_beaconInterval;                     //!< Interval between beacons
 
 private:
   void Receive (Ptr<Packet> packet, const WifiMacHeader *hdr);
@@ -152,7 +165,7 @@ private:
    *
    * \param hdr the header of the packet that we successfully sent
    */
-  void TxOk (const WifiMacHeader &hdr);
+  void TxOk (Ptr<const Packet> packet, const WifiMacHeader &hdr);
   /**
    * The packet we sent was successfully received by the receiver
    * (i.e. we did not receive an ACK from the receiver).  If the packet
@@ -285,7 +298,6 @@ private:
   void DoInitialize (void);
 
   Ptr<DcaTxop> m_beaconDca;                  //!< Dedicated DcaTxop for beacons
-  Time m_beaconInterval;                     //!< Interval between beacons
   bool m_enableBeaconGeneration;             //!< Flag whether beacons are being generated
   EventId m_beaconEvent;                     //!< Event to generate one beacon
   Ptr<UniformRandomVariable> m_beaconJitter; //!< UniformRandomVariable used to randomize the time of the first beacon

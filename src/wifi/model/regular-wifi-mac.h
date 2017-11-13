@@ -31,6 +31,26 @@ class MacLow;
 class MacRxMiddle;
 class MacTxMiddle;
 class DcfManager;
+/**
+ * \brief An extension to RegularWifiMac
+ */
+class RegularWifiExtensionInterface : virtual public WifiMacExtensionInterface
+{
+public:
+  /**
+   * The packet we sent was successfully received by the receiver
+   * (i.e. we received an ACK from the receiver).
+   *
+   * \param currentPacket the packet that we successfully sent
+   * \param hdr the header of the packet that we successfully sent
+   */
+  virtual void TxOk (Ptr<const Packet> currentPacket, const WifiMacHeader &hdr) = 0;
+
+  virtual void DoReceive (Ptr<Packet> packet, const WifiMacHeader *hdr) = 0;
+
+  virtual void SetWifiRemoteStationManager (const Ptr<WifiRemoteStationManager> stationManager) = 0;
+  virtual void FinishConfigureStandard (WifiPhyStandard standard) = 0;
+};
 
 /**
  * \brief base class for all MAC-level wifi objects.
@@ -44,6 +64,7 @@ class DcfManager;
 class RegularWifiMac : public WifiMac
 {
 public:
+  friend class RegularWifiMacExtensionAd;
   /**
    * \brief Get the type ID.
    * \return the object TypeId
@@ -394,13 +415,15 @@ protected:
    * \param hdr a pointer to the MAC header of the received frame.
    */
   virtual void Receive (Ptr<Packet> packet, const WifiMacHeader *hdr);
+
   /**
    * The packet we sent was successfully received by the receiver
    * (i.e. we received an ACK from the receiver).
    *
+   * \param currentPacket the packet that we successfully sent
    * \param hdr the header of the packet that we successfully sent
    */
-  virtual void TxOk (const WifiMacHeader &hdr);
+  virtual void TxOk (Ptr<const Packet> currentPacket, const WifiMacHeader &hdr);
   /**
    * The packet we sent was successfully received by the receiver
    * (i.e. we did not receive an ACK from the receiver).
@@ -576,6 +599,9 @@ private:
    * \returns the assigned value
    */
   RegularWifiMac & operator= (const RegularWifiMac & mac);
+
+  void DoReceive (Ptr<Packet> packet, const WifiMacHeader *hdr);
+  void DoFinishConfigureStandard (WifiPhyStandard standard);
 
   /**
    * This method is a private utility invoked to configure the channel
