@@ -191,6 +191,14 @@ DcfState::IsAccessRequested (void) const
 }
 
 void
+DcfState::ResetState (uint32_t nSlots)
+{
+  NS_LOG_FUNCTION (this << nSlots);
+  m_backoffSlots = nSlots;
+  m_backoffStart = Simulator::Now ();
+}
+
+void
 DcfState::NotifyAccessRequested (void)
 {
   NS_LOG_FUNCTION (this);

@@ -141,7 +141,11 @@ public:
    *          has not been granted already, false otherwise.
    */
   bool IsAccessRequested (void) const;
-
+  /**
+   * ResetState
+   * \param nSlots
+   */
+  void ResetState (uint32_t nSlots);
 
 protected:
   /// DcfManager associated class
