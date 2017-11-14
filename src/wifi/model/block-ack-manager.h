@@ -98,6 +98,13 @@ public:
   void SetWifiRemoteStationManager (const Ptr<WifiRemoteStationManager> manager);
   /**
    * \param recipient Address of peer station involved in block ack mechanism.
+   *
+   * Copy all block ack agreement exists with station addressed by
+   * <i>recipient</i> for tid <i>tid</i>.
+   */
+  void CopyAgreements (Mac48Address recipient, BlockAckManager *manager);
+  /**
+   * \param recipient Address of peer station involved in block ack mechanism.
    * \param tid Traffic ID.
    *
    * \return true  if a block ack agreement exists, false otherwise

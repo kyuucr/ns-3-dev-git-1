@@ -77,6 +77,44 @@ BlockAckManager::~BlockAckManager ()
   m_retryPackets.clear ();
 }
 
+void
+BlockAckManager::CopyAgreements (Mac48Address recipient, BlockAckManager *manager)
+{
+  NS_LOG_FUNCTION (this << recipient << manager);
+  std::pair<Mac48Address, uint8_t> key;
+  std::pair<OriginatorBlockAckAgreement, PacketQueue> value;
+  OriginatorBlockAckAgreement agreement;  /* The existing agreement */
+  for (AgreementsI iter = m_agreements.begin (); iter != m_agreements.end (); iter++)
+    {
+      key = iter->first;
+      value = iter->second;
+      /* Check if there is already an existing agreement */
+      if (!ExistsAgreement (recipient, key.second))
+        {
+          agreement = value.first;
+          OriginatorBlockAckAgreement clonedAgreement (recipient, key.second);
+          clonedAgreement.SetStartingSequence (agreement.GetStartingSequence ());
+          clonedAgreement.SetBufferSize (agreement.GetBufferSize ());
+          clonedAgreement.SetWinEnd (agreement.GetWinEnd ());
+          clonedAgreement.SetTimeout (agreement.GetTimeout ());
+          clonedAgreement.SetAmsduSupport (agreement.IsAmsduSupported ());
+          clonedAgreement.SetHtSupported (agreement.IsHtSupported ());
+          if (agreement.IsImmediateBlockAck ())
+            {
+              clonedAgreement.SetImmediateBlockAck ();
+            }
+          else
+            {
+              clonedAgreement.SetDelayedBlockAck ();
+            }
+          clonedAgreement.SetState (agreement.GetState ());
+          std::pair<OriginatorBlockAckAgreement, PacketQueue> clonedValue (clonedAgreement, value.second);
+          manager->m_agreements.insert (std::make_pair (key, clonedValue));
+          manager->m_blockPackets (recipient, key.second);
+        }
+    }
+}
+
 bool
 BlockAckManager::ExistsAgreement (Mac48Address recipient, uint8_t tid) const
 {
