@@ -23,6 +23,8 @@
 
 #include "ns3/header.h"
 
+#include "map"
+
 namespace ns3 {
 
 /**
@@ -133,7 +135,7 @@ typedef uint8_t WifiInformationElementId;
 #define IE_DMS_REQUEST                          ((WifiInformationElementId)99)
 #define IE_DMS_RESPONSE                         ((WifiInformationElementId)100)
 #define IE_LINK_IDENTIFIER                      ((WifiInformationElementId)101)
-#define IE_WAKEUP_SCHEDULE                      ((WifiInformationElementId)102)
+#define IE_WAKEUP_SCHEDULE_OLD                  ((WifiInformationElementId)102)
 // 103 is reserved
 #define IE_CHANNEL_SWITCH_TIMING                ((WifiInformationElementId)104)
 #define IE_PTI_CONTROL                          ((WifiInformationElementId)105)
@@ -188,6 +190,49 @@ typedef uint8_t WifiInformationElementId;
 // 222 to 255 are reserved
 #define IE_HE_CAPABILITIES                      ((WifiInformationElementId)255) //todo: not defined yet in the standard!
 
+#define IE_EXTENDED_CAPABILITIES               ((WifiInformationElementId)127)
+// 143 to 190 are 802.11ad in 802.11-2012
+#define IE_WAKEUP_SCHEDULE                     ((WifiInformationElementId)143)
+#define IE_EXTENDED_SCHEDULE                   ((WifiInformationElementId)144)
+#define IE_STA_AVAILABILITY                    ((WifiInformationElementId)145)
+#define IE_DMG_TSPEC                           ((WifiInformationElementId)146)
+#define IE_NEXT_DMG_ATI                        ((WifiInformationElementId)147)
+#define IE_DMG_CAPABILITIES                    ((WifiInformationElementId)148)
+#define IE_DMG_OPERATION                       ((WifiInformationElementId)151)
+#define IE_DMG_BSS_PARAMETER_CHANGE            ((WifiInformationElementId)152)
+#define IE_DMG_BEAM_REFINEMENT                 ((WifiInformationElementId)153)
+#define IE_CHANNEL_MEASUREMENT_FEEDBACK        ((WifiInformationElementId)154)
+#define IE_AWAKE_WINDOW                        ((WifiInformationElementId)157)
+#define IE_MULTI_BAND                          ((WifiInformationElementId)158)
+#define IE_ADDBA_EXTENSION                     ((WifiInformationElementId)159)
+#define IE_NEXT_PCP_LIST                       ((WifiInformationElementId)160)
+#define IE_PCP_HANDOVER                        ((WifiInformationElementId)161)
+#define IE_DMG_LINK_MARGIN                     ((WifiInformationElementId)162)
+#define IE_SWITCHING_STREAM                    ((WifiInformationElementId)163)
+#define IE_SESSION_TRANSITION                  ((WifiInformationElementId)164)
+#define IE_DYNAMIC_TONE_PAIRING_REPORT         ((WifiInformationElementId)165)
+#define IE_CLUSTER_REPORT                      ((WifiInformationElementId)166)
+#define IE_RELAY_CAPABILITIES                  ((WifiInformationElementId)167)
+#define IE_RELAY_TRANSFER_PARAMETER_SET        ((WifiInformationElementId)168)
+#define IE_BEAMLINK_MAINENANCE                 ((WifiInformationElementId)169)
+#define IE_DMG_LINK_ADAPTATION_ACKNOWLEDGMENT  ((WifiInformationElementId)172)
+#define IE_QUIET_PERIOD_REQUEST                ((WifiInformationElementId)175)
+#define IE_QUIET_PERIOD_RESPONSE               ((WifiInformationElementId)177)
+#define IE_ECPAC_POLICY                        ((WifiInformationElementId)182)
+// 128 to 190 are reserved in 802.11-2007
+#define IE_VHT_CAPABILITIES                    ((WifiInformationElementId)191)
+#define IE_VENDOR_SPECIFIC                     ((WifiInformationElementId)221)
+// 222 to 255 are reserved in 802.11-2007
+
+/**
+ * Deserialize IE ID and length. The iterator passed in  must be
+ * pointing at the Element ID of an information element.
+ *
+ * \param i an iterator which points to where the IE should be read.
+ *
+ * \return an iterator
+ */
+Buffer::Iterator DeserializeElementID (Buffer::Iterator i, uint8_t &elementID, uint8_t &length);
 
 /**
  * \brief Information element, as defined in 802.11-2007 standard
@@ -261,6 +306,15 @@ public:
    */
   Buffer::Iterator DeserializeIfPresent (Buffer::Iterator i);
   /**
+   * Deserialize IE Body. The iterator passed in must be pointing at
+   * the Element Body of an information element.
+   *
+   * \param i an iterator which points to where the IE body should be read.
+   *
+   * \return an iterator
+   */
+  Buffer::Iterator DeserializeElementBody (Buffer::Iterator i, uint8_t length);
+  /**
    * Get the size of the serialized IE including Element ID and
    * length fields.
    *
@@ -321,6 +375,10 @@ public:
   virtual bool operator== (WifiInformationElement const & a) const;
 
 };
+
+typedef std::vector<Ptr<WifiInformationElement> > WifiInfoElementList;
+typedef std::vector<WifiInformationElementId> WifiInformationElementIdList;
+typedef std::map<WifiInformationElementId, Ptr<WifiInformationElement> > WifiInformationElementMap;
 
 } //namespace ns3
 

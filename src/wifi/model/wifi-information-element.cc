@@ -22,6 +22,14 @@
 
 namespace ns3 {
 
+Buffer::Iterator
+DeserializeElementID (Buffer::Iterator i, uint8_t &elementID, uint8_t &length)
+{
+  elementID = i.ReadU8 ();
+  length = i.ReadU8 ();
+  return i;
+}
+
 WifiInformationElement::~WifiInformationElement ()
 {
 }
@@ -81,6 +89,14 @@ WifiInformationElement::DeserializeIfPresent (Buffer::Iterator i)
   DeserializeInformationField (i, length);
   i.Next (length);
 
+  return i;
+}
+
+Buffer::Iterator
+WifiInformationElement::DeserializeElementBody (Buffer::Iterator i, uint8_t length)
+{
+  DeserializeInformationField (i, length);
+  i.Next (length);
   return i;
 }
 
