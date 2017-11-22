@@ -296,7 +296,7 @@ public:
    * This method is typically invoked by the lower PHY layer to notify
    * the MAC layer that a packet was successfully received.
    */
-  void ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe);
+  virtual void ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe);
   /**
    * \param packet packet received.
    * \param rxSnr snr of packet received.
@@ -402,8 +402,18 @@ public:
    */
   virtual WifiTxVector GetDataTxVector (Ptr<const Packet> packet, const WifiMacHeader *hdr) const;
 
+protected:
+  virtual void PeelHeader (Ptr<Packet> packet);
+  virtual void ScheduleCts(WifiTxVector txVector, double rxSnr);
+  virtual void DoReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe);
+  void ReceivedCts (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe);
+  void ReceivedPacket(Ptr<Packet> packet);
+  virtual void NotifyDoNavResetNow(Time duration) const;
+  virtual void NotifyDoNavStartNow(Time duration) const;
+  bool DoReceiveMpdu (Ptr<Packet> packet, WifiMacHeader hdr);
+  virtual Time GetAPPDUMaxTime () const;
+  virtual Time CalculateAMPDUSubrame(Ptr<const Packet> packet, WifiTxVector txVector);
 
-private:
   /**
    * Cancel all scheduled events. Called before beginning a transmission
    * or switching channel.
@@ -432,7 +442,7 @@ private:
    * \param hdr the header
    * \param txVector the transmit vector
    */
-  void ForwardDown (Ptr<const Packet> packet, const WifiMacHeader *hdr, WifiTxVector txVector);
+  virtual void ForwardDown (Ptr<const Packet> packet, const WifiMacHeader *hdr, WifiTxVector txVector);
   /**
    * Forward the MPDU down to WifiPhy for transmission. This is called for each MPDU when MPDU aggregation is used.
    *
@@ -570,7 +580,7 @@ private:
    * \param hdr the header
    * \param preamble the preamble
    */
-  void NotifyNav (Ptr<const Packet> packet,const WifiMacHeader &hdr, WifiPreamble preamble);
+  virtual void NotifyNav (Ptr<const Packet> packet, Ptr<const WifiMacHeader> hdr, WifiPreamble preamble);
   /**
    * Reset NAV with the given duration.
    *
@@ -596,21 +606,21 @@ private:
    *
    * \param duration the duration
    */
-  void NotifyAckTimeoutStartNow (Time duration);
+  virtual void NotifyAckTimeoutStartNow (Time duration) const;
   /**
    * Notify DcfManager that ACK timer should be resetted.
    */
-  void NotifyAckTimeoutResetNow ();
+  virtual void NotifyAckTimeoutResetNow () const;
   /**
    * Notify DcfManagerthat CTS timer should be started for the given duration.
    *
    * \param duration
    */
-  void NotifyCtsTimeoutStartNow (Time duration);
+  virtual void NotifyCtsTimeoutStartNow (Time duration) const;
   /**
    * Notify DcfManager that CTS timer should be resetted.
    */
-  void NotifyCtsTimeoutResetNow ();
+  virtual void NotifyCtsTimeoutResetNow () const;
   /**
    * Reset NAV after CTS was missed when the NAV was
    * setted with RTS.
@@ -738,7 +748,7 @@ private:
    * and stores the MPDU if needed when an MPDU is received in an non-HT Station (implements HT
    * immediate block Ack)
    */
-  bool ReceiveMpdu (Ptr<Packet> packet, WifiMacHeader hdr);
+  virtual bool ReceiveMpdu (Ptr<Packet> packet, WifiMacHeader hdr);
   /**
    * \param packet the packet
    * \param hdr the header
@@ -879,7 +889,7 @@ private:
   Ptr<Packet> m_currentPacket;              //!< Current packet transmitted/to be transmitted
   WifiMacHeader m_currentHdr;               //!< Header of the current transmitted packet
   Ptr<DcaTxop> m_currentDca;                //!< Current DCA
-  WifiMacHeader m_lastReceivedHdr;          //!< Header of the last received packet
+  Ptr<WifiMacHeader> m_lastReceivedHdr;     //!< Header of the last received packet
   MacLowTransmissionParameters m_txParams;  //!< Transmission parameters of the current packet
   Mac48Address m_self;                      //!< Address of this MacLow (Mac48Address)
   Mac48Address m_bssid;                     //!< BSSID address (Mac48Address)
