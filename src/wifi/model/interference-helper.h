@@ -202,7 +202,7 @@ private:
   void EraseEvents (void);
 
 
-private:
+protected:
   /**
    * Noise and Interference (thus Ni) event.
    */
@@ -280,6 +280,7 @@ private:
    * \return SNR in liear ratio
    */
   double CalculateSnr (double signal, double noiseInterference, uint8_t channelWidth) const;
+private:
   /**
    * Calculate the success rate of the chunk given the SINR, duration, and Wi-Fi mode.
    * The duration and mode are used to calculate how many bits are present in the chunk.
