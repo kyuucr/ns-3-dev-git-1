@@ -105,7 +105,8 @@ DcfManager::DcfManager ()
     m_sleeping (false),
     m_slotTimeUs (0),
     m_sifs (Seconds (0.0)),
-    m_phyListener (0)
+    m_phyListener (0),
+    m_accessAllowed (true)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -286,6 +287,24 @@ DcfManager::IsWithinAifs (Ptr<DcfState> state) const
     }
   NS_LOG_DEBUG ("IsWithinAifs () false; ifsEnd was at " << ifsEnd.GetSeconds ());
   return false;
+}
+
+void
+DcfManager::AllowChannelAccess ()
+{
+  m_accessAllowed = true;
+}
+
+void
+DcfManager::DisableChannelAccess ()
+{
+  m_accessAllowed = false;
+}
+
+bool
+DcfManager::IsAccessAllowed () const
+{
+  return m_accessAllowed;
 }
 
 void
@@ -535,6 +554,12 @@ DcfManager::DoRestartAccessTimeoutIfNeeded (void)
                                                  &DcfManager::AccessTimeout, this);
         }
     }
+}
+
+bool
+DcfManager::IsReceiving (void) const
+{
+  return m_rxing;
 }
 
 void

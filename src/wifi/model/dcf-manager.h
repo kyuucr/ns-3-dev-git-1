@@ -123,6 +123,11 @@ public:
   void RequestAccess (Ptr<DcfState> state);
 
   /**
+   * Check if we are receiving any packet.
+   * \return true if we receiving packet.
+   */
+  bool IsReceiving (void) const;
+  /**
    * \param duration expected duration of reception
    *
    * Notify the DCF that a packet reception started
@@ -201,6 +206,11 @@ public:
    * Notify that CTS timer has resetted.
    */
   void NotifyCtsTimeoutResetNow ();
+
+  /* This is used only for EDCA contention */
+  void AllowChannelAccess ();
+  void DisableChannelAccess ();
+  bool IsAccessAllowed () const;
 
 protected:
   // Inherited from ns3::Object
@@ -349,6 +359,8 @@ private:
   uint32_t m_slotTimeUs;        //!< the slot time in microseconds
   Time m_sifs;                  //!< the SIFS time
   PhyListener* m_phyListener;   //!< the phy listener
+  bool m_accessAllowed;         //!< Access allowed by DcaTxop instances
+
 };
 
 } //namespace ns3
