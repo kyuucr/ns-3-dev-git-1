@@ -141,7 +141,7 @@ public:
   /**
    * \return the width of each band (Hz)
    */
-  double GetBandBandwidth (void) const;
+  virtual double GetBandBandwidth (void) const;
 
   /**
    * \return the width of the guard band (MHz)
