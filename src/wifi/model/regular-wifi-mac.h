@@ -420,10 +420,9 @@ protected:
    * The packet we sent was successfully received by the receiver
    * (i.e. we received an ACK from the receiver).
    *
-   * \param currentPacket the packet that we successfully sent
    * \param hdr the header of the packet that we successfully sent
    */
-  virtual void TxOk (Ptr<const Packet> currentPacket, const WifiMacHeader &hdr);
+  virtual void TxOk (const WifiMacHeader &hdr);
   /**
    * The packet we sent was successfully received by the receiver
    * (i.e. we did not receive an ACK from the receiver).

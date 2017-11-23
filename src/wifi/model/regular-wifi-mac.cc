@@ -895,7 +895,7 @@ RegularWifiMac::ForwardUp (Ptr<Packet> packet, Mac48Address from, Mac48Address t
 }
 
 void
-RegularWifiMac::TxOk (Ptr<const Packet> currentPacket, const WifiMacHeader &hdr)
+RegularWifiMac::TxOk (const WifiMacHeader &hdr)
 {
   NS_LOG_FUNCTION (this << hdr);
   if (GetExtension() != nullptr)
