@@ -109,6 +109,12 @@ public:
    */
   void SetState (State state);
   /**
+   * Get the current state.
+   *
+   * \return state
+   */
+  State GetState (void) const;
+  /**
    * Check if the current state of this agreement is PENDING.
    *
    * \return true if the current state of this agreement is PENDING,
