@@ -64,12 +64,12 @@ EdcaTxopN::GetTypeId (void)
 }
 
 EdcaTxopN::EdcaTxopN ()
-  : m_msduAggregator (0),
-    m_mpduAggregator (0),
+  : m_isAccessRequestedForRts (false),
     m_typeOfStation (STA),
+    m_msduAggregator (nullptr),
+    m_mpduAggregator (nullptr),
     m_blockAckType (COMPRESSED_BLOCK_ACK),
     m_startTxop (Seconds (0)),
-    m_isAccessRequestedForRts (false),
     m_currentIsFragmented (false)
 {
   NS_LOG_FUNCTION (this);
