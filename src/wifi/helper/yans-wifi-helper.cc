@@ -151,6 +151,12 @@ Ptr<WifiPhy>
 YansWifiPhyHelper::Create (Ptr<Node> node, Ptr<NetDevice> device) const
 {
   Ptr<YansWifiPhy> phy = m_phy.Create<YansWifiPhy> ();
+  return CreateWithPhy(node, device, phy);
+}
+
+Ptr<WifiPhy>
+YansWifiPhyHelper::CreateWithPhy (Ptr<Node> node, Ptr<NetDevice> device, Ptr<YansWifiPhy> phy) const
+{
   Ptr<ErrorRateModel> error = m_errorRateModel.Create<ErrorRateModel> ();
   phy->SetErrorRateModel (error);
   phy->SetChannel (m_channel);

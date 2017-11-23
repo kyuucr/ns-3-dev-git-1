@@ -185,7 +185,7 @@ public:
    */
   void SetChannel (std::string channelName);
 
-private:
+protected:
   /**
    * \param node the node on which we wish to create a wifi PHY
    * \param device the device within which this PHY will be created
@@ -194,6 +194,8 @@ private:
    * This method implements the pure virtual method defined in \ref ns3::WifiPhyHelper.
    */
   virtual Ptr<WifiPhy> Create (Ptr<Node> node, Ptr<NetDevice> device) const;
+
+  Ptr<WifiPhy> CreateWithPhy (Ptr<Node> node, Ptr<NetDevice> device, Ptr<YansWifiPhy> phy) const;
 
   Ptr<YansWifiChannel> m_channel; ///< yans wifi channel
 };
