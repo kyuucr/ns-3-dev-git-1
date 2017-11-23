@@ -353,6 +353,12 @@ DcaTxop::GetFragmentPacket (WifiMacHeader *hdr)
   return fragment;
 }
 
+bool
+DcaTxop::ShouldRtsAndAckBeDisabled () const
+{
+  return (m_currentHdr.GetAddr1 ().IsGroup ());
+}
+
 void
 DcaTxop::NotifyAccessGranted (void)
 {
@@ -380,7 +386,7 @@ DcaTxop::NotifyAccessGranted (void)
                     ", to=" << m_currentHdr.GetAddr1 () <<
                     ", seq=" << m_currentHdr.GetSequenceControl ());
     }
-  if (m_currentHdr.GetAddr1 ().IsGroup ())
+  if (ShouldRtsAndAckBeDisabled ())
     {
       m_currentParams.DisableRts ();
       m_currentParams.DisableAck ();

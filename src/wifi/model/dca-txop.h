@@ -291,6 +291,8 @@ public:
    */
   int64_t AssignStreams (int64_t stream);
 
+  virtual bool ShouldRtsAndAckBeDisabled () const;
+
 
 protected:
   ///< DcfState associated class
