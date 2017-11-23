@@ -338,6 +338,7 @@ WifiMac::DoConfigureStandard(WifiPhyStandard standard)
     case WIFI_PHY_STANDARD_UNSPECIFIED:
       NS_FATAL_ERROR ("Wifi standard not found");
     default:
+      NS_LOG_DEBUG ("STD managed in extensions... or there is an error");
       // Hopefully the standard is managed in the extensions
     }
   FinishConfigureStandard (standard);
