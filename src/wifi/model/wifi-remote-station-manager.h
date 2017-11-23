@@ -30,7 +30,6 @@
 #include "ht-capabilities.h"
 #include "vht-capabilities.h"
 #include "he-capabilities.h"
-#include "dmg-capabilities.h"
 
 namespace ns3 {
 
