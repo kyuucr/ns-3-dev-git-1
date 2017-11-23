@@ -146,11 +146,6 @@ public:
    * \return the number of stream indices assigned by this model
    */
   int64_t AssignStreams (int64_t stream);
-  /**
-   * Get MultiBand InformationElement
-   * \return The multiband element.
-   */
-  Ptr<MultiBandElement> GetMultiBandElement (void) const;
 
 protected:
   Time m_beaconInterval;                     //!< Interval between beacons
