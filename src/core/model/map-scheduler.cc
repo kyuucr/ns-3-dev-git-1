@@ -62,6 +62,7 @@ MapScheduler::Insert (const Event &ev)
 {
   NS_LOG_FUNCTION (this << ev.impl << ev.key.m_ts << ev.key.m_uid);
   std::pair<EventMapI,bool> result;
+  std::lock_guard<std::mutex> lock (m_listMutex);
   result = m_list.insert (std::make_pair (ev.key, ev.impl));
   NS_ASSERT (result.second);
 }
@@ -70,6 +71,8 @@ bool
 MapScheduler::IsEmpty (void) const
 {
   NS_LOG_FUNCTION (this);
+  MapScheduler *_this = const_cast<MapScheduler*> (this);
+  std::lock_guard<std::mutex> lock (_this->m_listMutex);
   return m_list.empty ();
 }
 
@@ -77,6 +80,8 @@ Scheduler::Event
 MapScheduler::PeekNext (void) const
 {
   NS_LOG_FUNCTION (this);
+  MapScheduler *_this = const_cast<MapScheduler*> (this);
+  std::lock_guard<std::mutex> lock (_this->m_listMutex);
   EventMapCI i = m_list.begin ();
   NS_ASSERT (i != m_list.end ());
 
@@ -86,10 +91,12 @@ MapScheduler::PeekNext (void) const
   NS_LOG_DEBUG (this << ev.impl << ev.key.m_ts << ev.key.m_uid);
   return ev;
 }
+
 Scheduler::Event
 MapScheduler::RemoveNext (void)
 {
   NS_LOG_FUNCTION (this);
+  std::lock_guard<std::mutex> lock (m_listMutex);
   EventMapI i = m_list.begin ();
   NS_ASSERT (i != m_list.end ());
   Event ev;
@@ -104,6 +111,7 @@ void
 MapScheduler::Remove (const Event &ev)
 {
   NS_LOG_FUNCTION (this << ev.impl << ev.key.m_ts << ev.key.m_uid);
+  std::lock_guard<std::mutex> lock (m_listMutex);
   EventMapI i = m_list.find (ev.key);
   NS_ASSERT (i->second == ev.impl);
   m_list.erase (i);

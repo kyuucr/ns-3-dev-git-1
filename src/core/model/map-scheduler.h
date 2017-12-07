@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <map>
 #include <utility>
+#include <mutex>
 
 /**
  * \file
@@ -40,6 +41,8 @@ namespace ns3 {
  *
  * This class implements the an event scheduler using an std::map
  * data structure.
+ *
+ * All the methods in this class are implemented as reentrant.
  */
 class MapScheduler : public Scheduler
 {
@@ -72,6 +75,9 @@ private:
 
   /** The event list. */
   EventMap m_list;
+
+  /** The event list mutex */
+  std::mutex m_listMutex;
 };
 
 } // namespace ns3
