@@ -24,6 +24,7 @@
 #include "scheduler.h"
 #include <stdint.h>
 #include <vector>
+#include <mutex>
 
 /**
  * \file
@@ -49,6 +50,8 @@ namespace ns3 {
  *    the index of the root is 1.
  *  - It uses a slightly non-standard while loop for top-down heapify
  *    to move one if statement out of the loop.
+ *
+ * All the public methods are reentrant.
  */
 class HeapScheduler : public Scheduler
 {
@@ -162,6 +165,8 @@ private:
 
   /** The event list. */
   BinaryHeap m_heap;
+  /** Mutex for the heap */
+  std::mutex m_heapMutex;
 };
 
 } // namespace ns3

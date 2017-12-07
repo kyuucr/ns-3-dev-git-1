@@ -146,6 +146,9 @@ bool
 HeapScheduler::IsEmpty (void) const
 {
   NS_LOG_FUNCTION (this);
+  HeapScheduler *_this = const_cast<HeapScheduler*> (this);
+  std::lock_guard<std::mutex> lock (_this->m_heapMutex);
+
   return (m_heap.size () == 1) ? true : false;
 }
 
@@ -202,6 +205,7 @@ void
 HeapScheduler::Insert (const Event &ev)
 {
   NS_LOG_FUNCTION (this << &ev);
+  std::lock_guard<std::mutex> lock (m_heapMutex);
   m_heap.push_back (ev);
   BottomUp ();
 }
@@ -210,12 +214,16 @@ Scheduler::Event
 HeapScheduler::PeekNext (void) const
 {
   NS_LOG_FUNCTION (this);
+  HeapScheduler *_this = const_cast<HeapScheduler*> (this);
+  std::lock_guard<std::mutex> lock (_this->m_heapMutex);
   return m_heap[Root ()];
 }
+
 Scheduler::Event
 HeapScheduler::RemoveNext (void)
 {
   NS_LOG_FUNCTION (this);
+  std::lock_guard<std::mutex> lock (m_heapMutex);
   Event next = m_heap[Root ()];
   Exch (Root (), Last ());
   m_heap.pop_back ();
@@ -228,6 +236,7 @@ void
 HeapScheduler::Remove (const Event &ev)
 {
   NS_LOG_FUNCTION (this << &ev);
+  std::lock_guard<std::mutex> lock (m_heapMutex);
   uint32_t uid = ev.key.m_uid;
   for (uint32_t i = 1; i < m_heap.size (); i++)
     {
