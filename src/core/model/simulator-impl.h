@@ -28,6 +28,8 @@
 #include "object-factory.h"
 #include "ptr.h"
 
+#include "threadpool.h"
+
 /**
  * \file
  * \ingroup simulator
@@ -99,6 +101,19 @@ public:
   virtual uint32_t GetSystemId () const = 0; 
   /** \copydoc Simulator::GetContext */
   virtual uint32_t GetContext (void) const = 0;
+
+  /**
+   * \brief Add a job to the Thread pool
+   */
+  template<class F, class... Args>
+  auto AddJob(F&& f, Args&&... args)-> std::future<typename std::result_of<F(Args...)>::type>
+  {
+    return m_pool.AddJob (f, args...);
+  }
+
+protected:
+  /** Thread pool */
+  ThreadPool m_pool;
 };
 
 } // namespace ns3

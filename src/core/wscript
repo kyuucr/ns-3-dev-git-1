@@ -301,6 +301,7 @@ def build(bld):
         'model/non-copyable.h',
         'model/build-profile.h',
         'model/des-metrics.h',
+        'model/threadpool.h',
         ]
 
     if sys.platform == 'win32':

@@ -25,11 +25,12 @@
 #include "event-impl.h"
 #include "make-event.h"
 #include "nstime.h"
-
+#include "simulator-impl.h"
 #include "object-factory.h"
 
 #include <stdint.h>
 #include <string>
+#include <future>
 
 /**
  * @file
@@ -39,7 +40,6 @@
 
 namespace ns3 {
 
-class SimulatorImpl;
 class Scheduler;
 
 /**
@@ -183,6 +183,18 @@ public:
    * @return The current simulation context
    */
   static uint32_t GetContext (void);
+
+  /**
+   * \brief Execute a new job in a different thread
+   *
+   * \param f Callable object
+   * \param args Arguments for the callable
+   */
+  template<class F, class... Args>
+  static auto AddJob(F&& f, Args&&... args)-> std::future<typename std::result_of<F(Args...)>::type>
+  {
+    return GetImplementation ()->AddJob (f, args...);
+  }
 
   /** Context enum values. */
   enum {
@@ -1315,7 +1327,7 @@ public:
    * @return The system id for this simulator.
    */
   static uint32_t GetSystemId (void);
-  
+
 private:
   /** Default constructor. */
   Simulator ();

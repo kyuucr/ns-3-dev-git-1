@@ -25,6 +25,7 @@
 #include "event-impl.h"
 #include "des-metrics.h"
 
+#include "uinteger.h"
 #include "ptr.h"
 #include "string.h"
 #include "object-factory.h"
@@ -76,6 +77,17 @@ static GlobalValue g_schedTypeImpl = GlobalValue ("SchedulerType",
                                                   "The object class to use as the scheduler implementation",
                                                   TypeIdValue (MapScheduler::GetTypeId ()),
                                                   MakeTypeIdChecker ());
+
+/**
+ * \ingroup simulator
+ *
+ * \brief Number of working threads to use.
+ */
+GlobalValue g_ThreadsNum = GlobalValue
+  ("ThreadsNumber",
+   "The number of threads to create in the Thread Pool",
+   UintegerValue (0),
+   MakeUintegerChecker<uint16_t> (0, std::thread::hardware_concurrency() - 1));
 
 /**
  * \ingroup logging
@@ -427,8 +439,6 @@ Simulator::GetImplementation (void)
   NS_LOG_FUNCTION_NOARGS ();
   return GetImpl ();
 }
-
-
 
 } // namespace ns3
 

@@ -32,6 +32,8 @@
 #include "boolean.h"
 #include "enum.h"
 
+#include "global-value.h"
+#include "uinteger.h"
 
 #include <cmath>
 
@@ -73,10 +75,15 @@ RealtimeSimulatorImpl::GetTypeId (void)
   return tid;
 }
 
+extern GlobalValue g_ThreadsNum;
 
 RealtimeSimulatorImpl::RealtimeSimulatorImpl ()
 {
   NS_LOG_FUNCTION (this);
+
+  UintegerValue threadCount;
+  g_ThreadsNum.GetValue(threadCount);
+  m_pool.Init (static_cast<uint16_t> (threadCount.Get()));
 
   m_stop = false;
   m_running = false;

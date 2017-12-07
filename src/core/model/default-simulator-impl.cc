@@ -27,6 +27,8 @@
 #include "pointer.h"
 #include "assert.h"
 #include "log.h"
+#include "global-value.h"
+#include "uinteger.h"
 
 #include <cmath>
 
@@ -57,9 +59,16 @@ DefaultSimulatorImpl::GetTypeId (void)
   return tid;
 }
 
+extern GlobalValue g_ThreadsNum;
+
 DefaultSimulatorImpl::DefaultSimulatorImpl ()
 {
   NS_LOG_FUNCTION (this);
+
+  UintegerValue threadCount;
+  g_ThreadsNum.GetValue(threadCount);
+  m_pool.Init (static_cast<uint16_t> (threadCount.Get()));
+
   m_stop = false;
   // uids are allocated from 4.
   // uid 0 is "invalid" events
@@ -216,6 +225,11 @@ DefaultSimulatorImpl::Run (void)
   while (!m_events->IsEmpty () && !m_stop) 
     {
       ProcessOneEvent ();
+
+      // No jobs are allowed to run between one event
+      // and the other. Wait for all the running jobs
+      // (hopefully, there aren't jobs running)
+      m_pool.WaitAll ();
     }
 
   // If the simulator stopped naturally by lack of events, make a
