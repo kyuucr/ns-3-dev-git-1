@@ -86,28 +86,41 @@ DefaultSimulatorImpl::DoDispose (void)
   NS_LOG_FUNCTION (this);
   ProcessEventsWithContext ();
 
+  m_bsl.lock();
   while (!m_events->IsEmpty ())
     {
       Scheduler::Event next = m_events->RemoveNext ();
       next.impl->Unref ();
     }
-  m_events = 0;
+  m_events = nullptr;
+  m_bsl.unlock();
+
   SimulatorImpl::DoDispose ();
 }
 void
 DefaultSimulatorImpl::Destroy ()
 {
   NS_LOG_FUNCTION (this);
+
+  m_destroyLock.lock ();
   while (!m_destroyEvents.empty ()) 
     {
       Ptr<EventImpl> ev = m_destroyEvents.front ().PeekEventImpl ();
       m_destroyEvents.pop_front ();
       NS_LOG_LOGIC ("handle destroy " << ev);
+
+      // Invoke the event without holding the lock, so the
+      // event can (safely) destroy other events
+      m_destroyLock.unlock ();
+
       if (!ev->IsCancelled ())
         {
           ev->Invoke ();
         }
+      m_destroyLock.lock();
     }
+
+  m_destroyLock.unlock ();
 }
 
 void
@@ -115,8 +128,9 @@ DefaultSimulatorImpl::SetScheduler (ObjectFactory schedulerFactory)
 {
   NS_LOG_FUNCTION (this << schedulerFactory);
   Ptr<Scheduler> scheduler = schedulerFactory.Create<Scheduler> ();
+  std::lock_guard<std::mutex> lock (m_bsl);
 
-  if (m_events != 0)
+  if (m_events != nullptr)
     {
       while (!m_events->IsEmpty ())
         {
@@ -155,6 +169,8 @@ DefaultSimulatorImpl::ProcessOneEvent (void)
 bool 
 DefaultSimulatorImpl::IsFinished (void) const
 {
+  DefaultSimulatorImpl *_this = const_cast<DefaultSimulatorImpl*> (this);
+  std::lock_guard<std::mutex> lock (_this->m_bsl);
   return m_events->IsEmpty () || m_stop;
 }
 
@@ -236,12 +252,17 @@ DefaultSimulatorImpl::Schedule (Time const &delay, EventImpl *event)
   NS_ASSERT (tAbsolute >= TimeStep (m_currentTs));
   Scheduler::Event ev;
   ev.impl = event;
-  ev.key.m_ts = (uint64_t) tAbsolute.GetTimeStep ();
+  ev.key.m_ts = static_cast<uint64_t> (tAbsolute.GetTimeStep ());
   ev.key.m_context = GetContext ();
   ev.key.m_uid = m_uid;
-  m_uid++;
-  m_unscheduledEvents++;
-  m_events->Insert (ev);
+
+  {
+    std::lock_guard<std::mutex> lock (m_bsl);
+    m_uid++;
+    m_unscheduledEvents++;
+    m_events->Insert (ev);
+  }
+
   return EventId (event, ev.key.m_ts, ev.key.m_context, ev.key.m_uid);
 }
 
@@ -250,12 +271,14 @@ DefaultSimulatorImpl::ScheduleWithContext (uint32_t context, Time const &delay, 
 {
   NS_LOG_FUNCTION (this << context << delay.GetTimeStep () << event);
 
+  std::lock_guard<std::mutex> lock (m_bsl);
+
   if (SystemThread::Equals (m_main))
     {
       Time tAbsolute = delay + TimeStep (m_currentTs);
       Scheduler::Event ev;
       ev.impl = event;
-      ev.key.m_ts = (uint64_t) tAbsolute.GetTimeStep ();
+      ev.key.m_ts = static_cast<uint64_t> (tAbsolute.GetTimeStep ());
       ev.key.m_context = context;
       ev.key.m_uid = m_uid;
       m_uid++;
@@ -287,9 +310,12 @@ DefaultSimulatorImpl::ScheduleNow (EventImpl *event)
   ev.key.m_ts = m_currentTs;
   ev.key.m_context = GetContext ();
   ev.key.m_uid = m_uid;
-  m_uid++;
-  m_unscheduledEvents++;
-  m_events->Insert (ev);
+  {
+    std::lock_guard<std::mutex> lock (m_bsl);
+    m_uid++;
+    m_unscheduledEvents++;
+    m_events->Insert (ev);
+  }
   return EventId (event, ev.key.m_ts, ev.key.m_context, ev.key.m_uid);
 }
 
@@ -298,9 +324,15 @@ DefaultSimulatorImpl::ScheduleDestroy (EventImpl *event)
 {
   NS_ASSERT_MSG (SystemThread::Equals (m_main), "Simulator::ScheduleDestroy Thread-unsafe invocation!");
 
+  std::unique_lock<std::mutex> lockDestroy(m_destroyLock, std::defer_lock);
+  std::unique_lock<std::mutex> lockBsl(m_bsl, std::defer_lock);
+
+  std::lock(lockDestroy, lockBsl);
+
   EventId id (Ptr<EventImpl> (event, false), m_currentTs, 0xffffffff, 2);
   m_destroyEvents.push_back (id);
   m_uid++;
+
   return id;
 }
 
@@ -329,6 +361,7 @@ DefaultSimulatorImpl::Remove (const EventId &id)
 {
   if (id.GetUid () == 2)
     {
+      std::lock_guard<std::mutex> lock (m_destroyLock);
       // destroy events.
       for (DestroyEvents::iterator i = m_destroyEvents.begin (); i != m_destroyEvents.end (); i++)
         {
@@ -349,12 +382,15 @@ DefaultSimulatorImpl::Remove (const EventId &id)
   event.key.m_ts = id.GetTs ();
   event.key.m_context = id.GetContext ();
   event.key.m_uid = id.GetUid ();
-  m_events->Remove (event);
+  {
+    std::lock_guard<std::mutex> lock (m_bsl);
+    m_events->Remove (event);
+    m_unscheduledEvents--;
+  }
+
   event.impl->Cancel ();
   // whenever we remove an event from the event list, we have to unref it.
   event.impl->Unref ();
-
-  m_unscheduledEvents--;
 }
 
 void
@@ -371,11 +407,13 @@ DefaultSimulatorImpl::IsExpired (const EventId &id) const
 {
   if (id.GetUid () == 2)
     {
-      if (id.PeekEventImpl () == 0 ||
+      if (id.PeekEventImpl () == nullptr ||
           id.PeekEventImpl ()->IsCancelled ())
         {
           return true;
         }
+      DefaultSimulatorImpl *_this = const_cast<DefaultSimulatorImpl*> (this);
+      std::lock_guard<std::mutex> lock (_this->m_destroyLock);
       // destroy events.
       for (DestroyEvents::const_iterator i = m_destroyEvents.begin (); i != m_destroyEvents.end (); i++)
         {
@@ -386,7 +424,7 @@ DefaultSimulatorImpl::IsExpired (const EventId &id) const
         }
       return true;
     }
-  if (id.PeekEventImpl () == 0 ||
+  if (id.PeekEventImpl () == nullptr ||
       id.GetTs () < m_currentTs ||
       (id.GetTs () == m_currentTs &&
        id.GetUid () <= m_currentUid) ||

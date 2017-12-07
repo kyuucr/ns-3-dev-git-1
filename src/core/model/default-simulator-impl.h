@@ -79,6 +79,12 @@ public:
   virtual uint32_t GetContext (void) const;
 
 private:
+  /** Big Simulator Lock */
+  std::mutex m_bsl;
+
+  /** Lock on the m_destroyEvents list */
+  std::mutex m_destroyLock;
+
   virtual void DoDispose (void);
 
   /** Process the next event. */
