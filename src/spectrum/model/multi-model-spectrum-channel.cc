@@ -274,6 +274,8 @@ MultiModelSpectrumChannel::StartTx (Ptr<SpectrumSignalParameters> txParams)
   NS_LOG_LOGIC ("converter map size: " << txInfoIteratorerator->second.m_spectrumConverterMap.size ());
   NS_LOG_LOGIC ("converter map first element: " << txInfoIteratorerator->second.m_spectrumConverterMap.begin ()->first);
 
+  std::vector<std::future<ComputationResult>> futures;
+
   for (RxSpectrumModelInfoMap_t::const_iterator rxInfoIterator = m_rxSpectrumModelInfoMap.begin ();
        rxInfoIterator != m_rxSpectrumModelInfoMap.end ();
        ++rxInfoIterator)
@@ -306,77 +308,109 @@ MultiModelSpectrumChannel::StartTx (Ptr<SpectrumSignalParameters> txParams)
 
           if ((*rxPhyIterator) != txParams->txPhy)
             {
-              NS_LOG_LOGIC (" copying signal parameters " << txParams);
-              Ptr<SpectrumSignalParameters> rxParams = txParams->Copy ();
-              rxParams->psd = Copy<SpectrumValue> (convertedTxPowerSpectrum);
-              Time delay = MicroSeconds (0);
-
               Ptr<MobilityModel> receiverMobility = (*rxPhyIterator)->GetMobility ();
+              ComputationResult ret;
 
               if (txMobility && receiverMobility)
                 {
-                  double pathLossDb = 0;
-                  if (rxParams->txAntenna != nullptr)
-                    {
-                      Angles txAngles (receiverMobility->GetPosition (), txMobility->GetPosition ());
-                      double txAntennaGain = rxParams->txAntenna->GetGainDb (txAngles);
-                      NS_LOG_LOGIC ("txAntennaGain = " << txAntennaGain << " dB");
-                      pathLossDb -= txAntennaGain;
-                    }
-                  Ptr<AntennaModel> rxAntenna = (*rxPhyIterator)->GetRxAntenna ();
-                  if (rxAntenna != nullptr)
-                    {
-                      Angles rxAngles (txMobility->GetPosition (), receiverMobility->GetPosition ());
-                      double rxAntennaGain = rxAntenna->GetGainDb (rxAngles);
-                      NS_LOG_LOGIC ("rxAntennaGain = " << rxAntennaGain << " dB");
-                      pathLossDb -= rxAntennaGain;
-                    }
-                  if (m_propagationLoss)
-                    {
-                      double propagationGainDb = m_propagationLoss->CalcRxPower (0, txMobility, receiverMobility);
-                      NS_LOG_LOGIC ("propagationGainDb = " << propagationGainDb << " dB");
-                      pathLossDb -= propagationGainDb;
-                    }
-                  NS_LOG_LOGIC ("total pathLoss = " << pathLossDb << " dB");    
-                  m_pathLossTrace (txParams->txPhy, *rxPhyIterator, pathLossDb);
-                  if ( pathLossDb > m_maxLossDb)
-                    {
-                      // beyond range
-                      continue;
-                    }
-                  double pathGainLinear = std::pow (10.0, (-pathLossDb) / 10.0);
-                  *(rxParams->psd) *= pathGainLinear;              
-
-                  if (m_spectrumPropagationLoss)
-                    {
-                      rxParams->psd = m_spectrumPropagationLoss->CalcRxPowerSpectralDensity (rxParams->psd, txMobility, receiverMobility);
-                    }
-
-                  if (m_propagationDelay)
-                    {
-                      delay = m_propagationDelay->GetDelay (txMobility, receiverMobility);
-                    }
-                }
-
-              Ptr<NetDevice> netDev = (*rxPhyIterator)->GetDevice ();
-              if (netDev)
-                {
-                  // the receiver has a NetDevice, so we expect that it is attached to a Node
-                  uint32_t dstNode =  netDev->GetNode ()->GetId ();
-                  Simulator::ScheduleWithContext (dstNode, delay, &MultiModelSpectrumChannel::StartRx, this,
-                                                  rxParams, *rxPhyIterator);
-                }
-              else
-                {
-                  // the receiver is not attached to a NetDevice, so we cannot assume that it is attached to a node
-                  Simulator::Schedule (delay, &MultiModelSpectrumChannel::StartRx, this,
-                                       rxParams, *rxPhyIterator);
+                  Ptr<SpectrumSignalParameters> rxParams = txParams->Copy ();
+                  rxParams->psd = Copy<SpectrumValue> (convertedTxPowerSpectrum);
+                  futures.push_back(Simulator::AddJob(std::bind(&ns3::MultiModelSpectrumChannel::DoComputationPsd,
+                                                                this, rxParams,
+                                                                receiverMobility, txMobility, rxPhyIterator,
+                                                                txParams->txPhy)));
                 }
             }
         }
-
     }
 
+  for (std::vector<std::future<ComputationResult>>::iterator futureIter = futures.begin();
+       futureIter != futures.end();
+       ++futureIter)
+   {
+     ComputationResult ret = futureIter->get();
+     Ptr<SpectrumPhy> rxPhy = *(ret.rxPhyIterator);
+     Ptr<NetDevice> netDev = rxPhy->GetDevice ();
+
+     if (netDev)
+       {
+         // the receiver has a NetDevice, so we expect that it is attached to a Node
+         uint32_t dstNode =  netDev->GetNode ()->GetId ();
+         Simulator::ScheduleWithContext (dstNode, ret.delay, &MultiModelSpectrumChannel::StartRx, this,
+                                         ret.rxParams, rxPhy);
+       }
+     else
+       {
+         // the receiver is not attached to a NetDevice, so we cannot assume that it is attached to a node
+         Simulator::Schedule (ret.delay, &MultiModelSpectrumChannel::StartRx, this,
+                              ret.rxParams, rxPhy);
+       }
+
+     m_pathLossTrace (ret.txPhy, *(ret.rxPhyIterator), ret.pathLossDb);
+   }
+}
+
+
+MultiModelSpectrumChannel::ComputationResult
+MultiModelSpectrumChannel::DoComputationPsd(const Ptr<SpectrumSignalParameters> &rxParams,
+                                            const Ptr<const MobilityModel> &receiverMobility,
+                                            const Ptr<const MobilityModel> &txMobility,
+                                            const std::set<Ptr<SpectrumPhy> >::const_iterator &rxPhyIterator,
+                                            const Ptr<SpectrumPhy> &txPhy) const
+{
+  ComputationResult ret;
+
+  ret.pathLossDb = 0;
+  Ptr<AntennaModel> rxAntenna = (*rxPhyIterator)->GetRxAntenna ();
+
+  if (rxParams->txAntenna)
+    {
+      Angles txAngles (receiverMobility->GetPosition (), txMobility->GetPosition ());
+      double txAntennaGain = rxParams->txAntenna->GetGainDb (txAngles);
+      ret.pathLossDb -= txAntennaGain;
+    }
+
+  if (rxAntenna)
+    {
+      Angles rxAngles (txMobility->GetPosition (), receiverMobility->GetPosition ());
+      double rxAntennaGain = rxAntenna->GetGainDb (rxAngles);
+      ret.pathLossDb -= rxAntennaGain;
+    }
+
+  if (m_propagationLoss)
+    {
+      double propagationGainDb = m_propagationLoss->CalcRxPower (0, txMobility, receiverMobility);
+      ret.pathLossDb -= propagationGainDb;
+    }
+
+  if (ret.pathLossDb > m_maxLossDb)
+    {
+      // beyond range
+      ret.delay = MicroSeconds (0);
+    }
+  else
+    {
+      double pathGainLinear = std::pow (10.0, (-ret.pathLossDb) / 10.0);
+
+      *(rxParams->psd) *= pathGainLinear;
+
+      if (m_spectrumPropagationLoss)
+        {
+          rxParams->psd = m_spectrumPropagationLoss->CalcRxPowerSpectralDensity (rxParams->psd,
+                                                                                 txMobility, receiverMobility);
+        }
+
+      if (m_propagationDelay)
+        {
+          ret.delay = m_propagationDelay->GetDelay (txMobility, receiverMobility);
+        }
+    }
+
+  ret.rxParams = rxParams;
+  ret.rxPhyIterator = rxPhyIterator;
+  ret.txPhy = txPhy;
+
+  return ret;
 }
 
 void
