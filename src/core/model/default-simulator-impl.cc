@@ -258,7 +258,6 @@ EventId
 DefaultSimulatorImpl::Schedule (Time const &delay, EventImpl *event)
 {
   NS_LOG_FUNCTION (this << delay.GetTimeStep () << event);
-  NS_ASSERT_MSG (SystemThread::Equals (m_main), "Simulator::Schedule Thread-unsafe invocation!");
 
   Time tAbsolute = delay + TimeStep (m_currentTs);
 
@@ -315,9 +314,7 @@ DefaultSimulatorImpl::ScheduleWithContext (uint32_t context, Time const &delay, 
 }
 
 EventId
-DefaultSimulatorImpl::ScheduleNow (EventImpl *event)
-{
-  NS_ASSERT_MSG (SystemThread::Equals (m_main), "Simulator::ScheduleNow Thread-unsafe invocation!");
+DefaultSimulatorImpl::ScheduleNow (EventImpl *event){
 
   Scheduler::Event ev;
   ev.impl = event;
@@ -336,8 +333,6 @@ DefaultSimulatorImpl::ScheduleNow (EventImpl *event)
 EventId
 DefaultSimulatorImpl::ScheduleDestroy (EventImpl *event)
 {
-  NS_ASSERT_MSG (SystemThread::Equals (m_main), "Simulator::ScheduleDestroy Thread-unsafe invocation!");
-
   std::unique_lock<std::mutex> lockDestroy(m_destroyLock, std::defer_lock);
   std::unique_lock<std::mutex> lockBsl(m_bsl, std::defer_lock);
 
