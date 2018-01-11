@@ -27,8 +27,12 @@
 #include "object.h"
 #include "object-factory.h"
 #include "ptr.h"
+#include "global-value.h"
+#include "boolean.h"
 
-#include "threadpool.h"
+#include <stlab/concurrency/future.hpp>
+#include <stlab/concurrency/default_executor.hpp>
+#include <stlab/concurrency/immediate_executor.hpp>
 
 /**
  * \file
@@ -102,18 +106,26 @@ public:
   /** \copydoc Simulator::GetContext */
   virtual uint32_t GetContext (void) const = 0;
 
+  static bool IsThreadingEnabled (void)
+  {
+    extern GlobalValue g_EnableThreads;
+    static BooleanValue threads = false;
+    g_EnableThreads.GetValue(threads);
+    return threads.Get();
+  }
+
   /**
    * \brief Add a job to the Thread pool
    */
-  template<class F, class... Args>
-  auto AddJob(F&& f, Args&&... args)-> std::future<typename std::result_of<F(Args...)>::type>
-  {
-    return m_pool.AddJob (f, args...);
-  }
-
-protected:
-  /** Thread pool */
-  ThreadPool m_pool;
+  template <typename F, typename... Args>
+  static auto AddJob(F&& f, Args&&... args)
+  -> stlab::future<std::result_of_t<std::decay_t<F>(std::decay_t<Args>...)>>
+    {
+      if (IsThreadingEnabled () == 0)
+        return stlab::async(stlab::immediate_executor, f, args ...);
+      else
+        return stlab::async (stlab::default_executor, f, args ...);
+    }
 };
 
 } // namespace ns3

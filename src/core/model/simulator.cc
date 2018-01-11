@@ -30,6 +30,7 @@
 #include "string.h"
 #include "object-factory.h"
 #include "global-value.h"
+#include "boolean.h"
 #include "assert.h"
 #include "log.h"
 
@@ -83,11 +84,11 @@ static GlobalValue g_schedTypeImpl = GlobalValue ("SchedulerType",
  *
  * \brief Number of working threads to use.
  */
-GlobalValue g_ThreadsNum = GlobalValue
-  ("ThreadsNumber",
-   "The number of threads to create in the Thread Pool",
-   UintegerValue (0),
-   MakeUintegerChecker<uint16_t> (0, std::thread::hardware_concurrency() - 1));
+GlobalValue g_EnableThreads = GlobalValue
+  ("EnableThreads",
+   "Enable threads of execution",
+   BooleanValue (false),
+   MakeBooleanChecker ());
 
 /**
  * \ingroup logging

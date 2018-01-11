@@ -31,7 +31,7 @@
 #include "uinteger.h"
 
 #include <cmath>
-
+#include <stlab/concurrency/default_executor.hpp>
 
 /**
  * \file
@@ -59,15 +59,9 @@ DefaultSimulatorImpl::GetTypeId (void)
   return tid;
 }
 
-extern GlobalValue g_ThreadsNum;
-
 DefaultSimulatorImpl::DefaultSimulatorImpl ()
 {
   NS_LOG_FUNCTION (this);
-
-  UintegerValue threadCount;
-  g_ThreadsNum.GetValue(threadCount);
-  m_pool.Init (static_cast<uint16_t> (threadCount.Get()));
 
   m_stop = false;
   // uids are allocated from 4.
@@ -229,7 +223,8 @@ DefaultSimulatorImpl::Run (void)
       // No jobs are allowed to run between one event
       // and the other. Wait for all the running jobs
       // (hopefully, there aren't jobs running)
-      m_pool.WaitAll ();
+      stlab::default_executor.wait_all();
+      NS_ABORT_IF(stlab::default_executor.jobs_left() > 0);
     }
 
   // If the simulator stopped naturally by lack of events, make a

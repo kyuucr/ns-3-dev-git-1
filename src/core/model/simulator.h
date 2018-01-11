@@ -30,7 +30,7 @@
 
 #include <stdint.h>
 #include <string>
-#include <future>
+#include <stlab/concurrency/future.hpp>
 
 /**
  * @file
@@ -190,8 +190,9 @@ public:
    * \param f Callable object
    * \param args Arguments for the callable
    */
-  template<class F, class... Args>
-  static auto AddJob(F&& f, Args&&... args)-> std::future<typename std::result_of<F(Args...)>::type>
+  template <typename F, typename... Args>
+  static auto AddJob(F&& f, Args&&... args)
+  -> stlab::future<std::result_of_t<std::decay_t<F>(std::decay_t<Args>...)>>
   {
     return GetImplementation ()->AddJob (f, args...);
   }
