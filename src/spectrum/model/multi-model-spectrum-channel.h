@@ -27,6 +27,7 @@
 #include <ns3/spectrum-channel.h>
 #include <ns3/spectrum-propagation-loss-model.h>
 #include <ns3/propagation-delay-model.h>
+#include <stlab/concurrency/future.hpp>
 #include <map>
 #include <set>
 #include <mutex>
