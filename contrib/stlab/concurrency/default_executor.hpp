@@ -248,6 +248,9 @@ class task_system {
     std::vector<std::thread> _threads;
     std::vector<notification_queue> _q{_count};
     std::atomic<unsigned> _index{0};
+    std::atomic<unsigned> _jobs_left{0};
+    std::condition_variable _waitVar;
+    std::mutex              _wait_mutex;
 
     void run(unsigned i) {
         while (true) {
@@ -259,6 +262,9 @@ class task_system {
             if (!f && !_q[i].pop(f)) break;
 
             f();
+
+            --_jobs_left;
+            _waitVar.notify_one();
         }
     }
 
@@ -267,6 +273,11 @@ public:
         for (unsigned n = 0; n != _count; ++n) {
             _threads.emplace_back([&, n] { run(n); });
         }
+    }
+
+    static task_system& get_instance() {
+        static task_system only_task_system;
+        return only_task_system;
     }
 
     ~task_system() {
@@ -282,10 +293,27 @@ public:
         auto i = _index++;
 
         for (unsigned n = 0; n != _count; ++n) {
-            if (_q[(i + n) % _count].try_push(std::forward<F>(f))) return;
+            if (_q[(i + n) % _count].try_push(std::forward<F>(f))) {
+                    ++_jobs_left;
+                    return;
+                }
         }
 
         _q[i % _count].push(std::forward<F>(f));
+        ++_jobs_left;
+    }
+
+    void wait_all () {
+      if( _jobs_left > 0 )
+        {
+          std::unique_lock<std::mutex> lk (_wait_mutex);
+          _waitVar.wait (lk, [this] { return this->_jobs_left == 0; } );
+          lk.unlock ();
+        }
+    }
+
+    unsigned int jobs_left () const {
+        return _jobs_left;
     }
 };
 
@@ -299,8 +327,15 @@ struct default_executor_type {
 
     template <typename F>
     void operator()(F&& f) const {
-        static task_system only_task_system;
-        only_task_system(std::forward<F>(f));
+        task_system::get_instance()(std::forward<F>(f));
+    }
+
+    void wait_all() const {
+        task_system::get_instance().wait_all();
+    }
+
+    unsigned int jobs_left() const {
+        return task_system::get_instance().jobs_left();
     }
 };
 
