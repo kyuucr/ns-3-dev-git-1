@@ -21,6 +21,7 @@
 
 #include <chrono>
 #include <unistd.h>
+#include <stlab/concurrency/default_executor.hpp>
 
 using namespace ns3;
 
@@ -47,6 +48,8 @@ public:
    * \return The important value of 42.
    */
   int DoWork();
+private:
+  stlab::future<void> copy;
 };
 
 MyClass::MyClass ()
@@ -59,18 +62,21 @@ MyClass::InitWork()
 {
   // A member function should be enqueued using std::bind, because to call
   // it we need the "this" pointer as well.
-  std::future<int> fut = Simulator::AddJob (std::bind(&MyClass::DoWork, this));
+  stlab::future<int> fut = Simulator::AddJob (std::bind(&MyClass::DoWork, this));
 
   // Here we can advance other work in parallel. DoWork is running somewhere,
   // or (if the number of threads is 0) is holded until "get" is called over fut.
 
   // Retrieve the value of the future, and then (hopefully) use it.
-  fut.get ();
+
+  copy = fut.then([](const int &x) {std::cout << "The answer is " << x << std::endl;});
 }
 
 int
 MyClass::DoWork ()
 {
+  auto start = std::chrono::high_resolution_clock::now();
+
   {
     std::lock_guard<std::mutex> lock (coutMutex);
     std::cout << "Starting job at "
@@ -82,13 +88,17 @@ MyClass::DoWork ()
 
   {
     std::lock_guard<std::mutex> lock (coutMutex);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end-start;
+
     std::cout << "Ending job at "
-              << Simulator::Now().GetSeconds() << std::endl;
+              << Simulator::Now().GetSeconds()
+              << ", real time passed: " << diff.count() * 1000
+              << " ms" << std::endl;
   }
 
   // Please note how the simulator time stays fixed. Well, at least until
   // you use the DefaultSimulatorImpl...
-
   return 42;
 }
 
@@ -154,18 +164,22 @@ void StartWorking ()
 
   // Launch three jobs. Depending on the number of threads, these will run
   // sequentially or in parallel.
-  std::future<bool> first = Simulator::AddJob (IsPrime, 0xA87b83728);
-  std::future<bool> second = Simulator::AddJob (IsPrime, 0xA87b837AA);
-  std::future<bool> third = Simulator::AddJob (IsPrime, 0xA87b837BB);
+  stlab::future<bool> first = Simulator::AddJob (IsPrime, 0xA87b83728);
+  stlab::future<bool> second = Simulator::AddJob (IsPrime, 0xA87b837AA);
+  stlab::future<bool> third = Simulator::AddJob (IsPrime, 0xA87b837BB);
 
   // we "emulate" other work that we can do in the main thread
   sleep (2);
 
   // Take the values. If the number of threads is 0, the work will be done
   // in the following.
-  bool a = first.get();
-  bool b = second.get();
-  bool c = third.get();
+  // Waiting just for illustrational purpose
+  while (!first.get_try()) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+  while (!second.get_try()) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+  while (!third.get_try()) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+  bool a = first.get_try().value();
+  bool b = second.get_try().value();
+  bool c = third.get_try().value();
 
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = end-start;
@@ -186,7 +200,7 @@ int main (int argc, char *argv[])
 
   MyClass c;
 
-  Simulator::Schedule (Seconds (10.0), &StartWorking);
+  //Simulator::Schedule (Seconds (10.0), &StartWorking);
   Simulator::Schedule (Seconds (11.0), &MyClass::InitWork, &c);
 
   Simulator::Run ();
